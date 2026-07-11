@@ -62,7 +62,7 @@ QUICK = os.environ.get("INFRA_QUICK") == "1"
 FPS = 24
 N_FRAMES = 72
 RES = (1280, 720)
-SAMPLES = 20 if QUICK else int(os.environ.get("INFRA_SAMPLES", "18"))
+SAMPLES = 20 if QUICK else int(os.environ.get("INFRA_SAMPLES", "16"))
 QUICK_FRAMES = [1, 24, 48, 72]
 
 # Camera descent law (Y-up, mirrors InfrastructureScene: cam at (0,camY,camZ)
