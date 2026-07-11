@@ -59,7 +59,11 @@ export class AugmentationScene extends Scene {
     this.three.add(floor);
 
     try {
-      const a = await ctx.loader.load('assets/models/cybernetic_module.glb');
+      // Higher tiers get the Cycles-AO-baked variant (richer machined depth,
+      // ~1MB); mobile/reduced tiers keep the lean factor-only original.
+      const rich = ctx.profile.tier === 'A' || ctx.profile.tier === 'B';
+      const url = rich ? 'assets/models/cybernetic_module_baked.glb' : 'assets/models/cybernetic_module.glb';
+      const a = await ctx.loader.load(url).catch(() => ctx.loader.load('assets/models/cybernetic_module.glb'));
       this.module = a.scene;
       this.module.position.set(0, 0, 0);
       this.three.add(this.module);

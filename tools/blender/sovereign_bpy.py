@@ -455,3 +455,244 @@ def lookdev_render(path, cam_loc=(2.4, -3.0, 1.6), target=(0, 0, 0.4),
     bpy.ops.render.render(write_still=True)
     print(f"[SOVEREIGN] lookdev {path}")
     return path
+
+
+# ----------------------------------------------------------------------------
+# Texture baking — Cycles AO / occlusion enrichment ("재질 베이크", docs/06).
+#
+# The canonical materials are factor-only PBR, so the ONE map that genuinely
+# enriches a hero is ambient occlusion: soft contact shadows in the machined
+# joinery and seams. We unwrap every part of an asset, PACK them into a single
+# shared 0..1 atlas, and bake all parts into ONE image in a single pass. The
+# result is then (a) multiplied into Base Color — the robust path that survives
+# glTF as a baseColorTexture — and (b) exposed as a true glTF *occlusionTexture*
+# (R channel) via the exporter's "glTF Material Output" node group. Roughness and
+# Metallic stay factors: with flat per-material PBR there is no per-texel R/M
+# variation to bake, so a baked ORM would only bloat the GLB (docs/06 §4 policy).
+#
+# These are additive helpers — nothing above depends on them, and the existing
+# build_*.py scripts are unaffected.
+# ----------------------------------------------------------------------------
+def smart_uv(obj, angle=66, island_margin=0.02):
+    """Angle-based Smart UV Project on a single object.
+
+    Enters edit mode, selects all, unwraps with `bpy.ops.uv.smart_project`, and
+    returns to object mode. Creates a UV layer if the object has none (imported
+    factor-only meshes ship without UVs). Leaves the object deselected.
+    """
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    bpy.context.view_layer.objects.active = obj
+    obj.select_set(True)
+    if not obj.data.uv_layers:
+        obj.data.uv_layers.new(name="UVMap")
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    bpy.ops.uv.smart_project(angle_limit=math.radians(angle),
+                             island_margin=island_margin)
+    bpy.ops.object.mode_set(mode="OBJECT")
+    obj.select_set(False)
+    return obj
+
+
+def _pack_atlas(objs, margin=0.01):
+    """Multi-object UV pack: lay every object's islands into one shared 0..1 atlas
+    so a single shared bake image has no overlap between parts."""
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    for o in objs:
+        o.select_set(True)
+    bpy.context.view_layer.objects.active = objs[0]
+    bpy.ops.object.mode_set(mode="EDIT")
+    bpy.ops.mesh.select_all(action="SELECT")
+    try:
+        bpy.ops.uv.pack_islands(margin=margin)
+    except Exception:
+        pass
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+
+
+def _materials_of(objs):
+    """Ordered unique list of materials used by a set of objects (shared-safe)."""
+    seen = []
+    for o in objs:
+        for slot in o.material_slots:
+            if slot.material and slot.material not in seen:
+                seen.append(slot.material)
+    return seen
+
+
+def bake_ao(objs, path, res=1024, samples=64, margin=8, ao_distance=0.3,
+            isolate=False):
+    """Bake Cycles ambient occlusion for `objs` into ONE shared image atlas.
+
+    Each object is unwrapped (if needed) and all islands are packed into a single
+    0..1 atlas. Every material used by `objs` gets an Image Texture node pointing
+    at the shared image, set active/selected, so a single `bake(type='AO')` over
+    all selected objects writes each part's AO into its packed region (objects
+    with multiple material slots — e.g. a join_all()'d layer — are handled: every
+    slot targets the same image). The image is saved as PNG at `path` and packed.
+
+    `isolate=False` (default) bakes all parts together, so parts mutually occlude
+    each other — the right choice for a STATIC assembly (e.g. the auth-door iris),
+    where contact shadows between nested rings/bolts are the whole point.
+
+    `isolate=True` bakes each object alone (others hidden), so the AO is pure
+    self-occlusion. Use it for a MODULAR asset whose named parts separate/animate
+    apart (e.g. the cybernetic spine's 5 layers): mutual baking would "print" one
+    layer's silhouette onto another as a contact-shadow decal that looks wrong the
+    moment the layers explode. Self-occlusion is valid in every assembly state.
+
+    Returns the baked bpy.types.Image.
+    """
+    objs = [o for o in objs if o and getattr(o, "type", None) == "MESH"]
+    if not objs:
+        raise ValueError("bake_ao: no mesh objects to bake")
+
+    # 1. Unwrap any object still missing UVs, then pack all into a shared atlas.
+    for o in objs:
+        if not o.data.uv_layers:
+            smart_uv(o)
+    _pack_atlas(objs)
+
+    # 2. Shared AO image — linear data, black (fully-lit) background.
+    name = os.path.splitext(os.path.basename(path))[0]
+    img = bpy.data.images.new(name, res, res, alpha=False, float_buffer=False)
+    img.colorspace_settings.name = "Non-Color"
+    img.generated_color = (0.0, 0.0, 0.0, 1.0)
+
+    # 3. Point every material's active image node at the shared atlas.
+    for mat in _materials_of(objs):
+        nt = mat.node_tree
+        for n in nt.nodes:
+            n.select = False
+        node = next((n for n in nt.nodes
+                     if n.type == "TEX_IMAGE" and n.image == img), None)
+        if node is None:
+            node = nt.nodes.new("ShaderNodeTexImage")
+            node.image = img
+            node.location = (-1000, -420)
+        node.select = True
+        nt.nodes.active = node
+
+    # 4. Cycles CPU AO bake. use_clear=False so every part accumulates into the
+    #    one atlas; world AO distance keeps occlusion contact-range, not global.
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    try:
+        scene.cycles.device = "CPU"
+        scene.cycles.samples = samples
+        scene.cycles.use_denoising = False   # AO is data; denoise would smear seams
+    except Exception:
+        pass
+    if scene.world is None:
+        scene.world = bpy.data.worlds.new("BakeWorld")
+    scene.world.light_settings.distance = ao_distance
+    bake = scene.render.bake
+    bake.use_clear = False
+    bake.margin = margin
+    bake.use_selected_to_active = False
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+    bpy.ops.object.select_all(action="DESELECT")
+    if isolate:
+        # Bake each object alone (pure self-occlusion), accumulating into the
+        # atlas. Hide EVERY other mesh in the scene — not just the other bake
+        # targets but any un-baked/skipped part too — so nothing prints its
+        # silhouette onto a part that will later separate from it.
+        scene_meshes = [m for m in bpy.data.objects if m.type == "MESH"]
+        prev_hide = {m.name: m.hide_render for m in scene_meshes}
+        for o in objs:
+            for m in scene_meshes:
+                m.hide_render = (m is not o)
+            bpy.ops.object.select_all(action="DESELECT")
+            o.select_set(True)
+            bpy.context.view_layer.objects.active = o
+            bpy.ops.object.bake(type="AO")
+        for m in scene_meshes:
+            m.hide_render = prev_hide.get(m.name, False)
+    else:
+        for o in objs:
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = objs[0]
+        bpy.ops.object.bake(type="AO")
+
+    # 5. Save + pack so the map travels inside the GLB.
+    os.makedirs(os.path.dirname(path), exist_ok=True)
+    img.filepath_raw = path
+    img.file_format = "PNG"
+    img.save()
+    try:
+        img.pack()
+    except Exception:
+        pass
+    print(f"[SOVEREIGN] baked AO {path}  ({res}x{res}, {samples} spp)")
+    return img
+
+
+def _gltf_occlusion_group():
+    """Fetch/create the exporter-recognised 'glTF Material Output' node group
+    (an 'Occlusion' float input). Connecting an AO image's Color to a group-node
+    instance of this tells the glTF exporter to write a real occlusionTexture."""
+    name = "glTF Material Output"
+    grp = bpy.data.node_groups.get(name)
+    if grp is None:
+        grp = bpy.data.node_groups.new(name, "ShaderNodeTree")
+        grp.interface.new_socket("Occlusion", socket_type="NodeSocketFloat")
+        grp.nodes.new("NodeGroupOutput")
+        gi = grp.nodes.new("NodeGroupInput")
+        gi.location = (-200, 0)
+    return grp
+
+
+def apply_ao_to_material(mat, image, strength=0.85, gltf_occlusion=True):
+    """Wire a baked AO `image` into `mat`.
+
+    (1) Multiply the AO into Base Color (MixRGB MULTIPLY, `strength` as factor) so
+        the contact shadows survive glTF export as a baseColorTexture — the simple,
+        robust, universally-visible path. Emission sockets are left untouched, so
+        cyan-data and amber-warning glows keep full strength.
+    (2) Best-effort: also expose the AO as a true glTF occlusionTexture (R channel)
+        via the 'glTF Material Output' node group, so a PBR-correct runtime can read
+        it from the dedicated slot. Wrapped so it can never break export.
+    """
+    if not mat.use_nodes:
+        return mat
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF") or next(
+        (n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is None:
+        return mat
+
+    tex = next((n for n in nt.nodes
+                if n.type == "TEX_IMAGE" and n.image == image), None)
+    if tex is None:
+        tex = nt.nodes.new("ShaderNodeTexImage")
+        tex.image = image
+    tex.image.colorspace_settings.name = "Non-Color"
+    tex.location = (-1000, -200)
+
+    # (1) AO * Base Color
+    base_in = bsdf.inputs["Base Color"]
+    mix = nt.nodes.new("ShaderNodeMixRGB")
+    mix.blend_type = "MULTIPLY"
+    mix.inputs["Fac"].default_value = strength
+    mix.location = (-560, 200)
+    if base_in.is_linked:
+        nt.links.new(base_in.links[0].from_socket, mix.inputs["Color1"])
+    else:
+        mix.inputs["Color1"].default_value = list(base_in.default_value)
+    nt.links.new(tex.outputs["Color"], mix.inputs["Color2"])
+    nt.links.new(mix.outputs["Color"], base_in)
+
+    # (2) glTF occlusionTexture (R channel) — best effort
+    if gltf_occlusion:
+        try:
+            gnode = nt.nodes.new("ShaderNodeGroup")
+            gnode.node_tree = _gltf_occlusion_group()
+            gnode.location = (-260, -420)
+            nt.links.new(tex.outputs["Color"], gnode.inputs["Occlusion"])
+        except Exception:
+            pass
+    return mat

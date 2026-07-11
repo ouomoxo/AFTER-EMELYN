@@ -45,7 +45,11 @@ export class HandshakeScene extends Scene {
     this.three.background = new THREE.Color(PALETTE.obsidianDeep);
 
     try {
-      const asset = await ctx.loader.load('assets/models/auth_door.glb');
+      // Higher tiers get the AO-baked door (the iris ring seats into real contact
+      // shadow); mobile/reduced tiers keep the lean original.
+      const rich = ctx.profile.tier === 'A' || ctx.profile.tier === 'B';
+      const url = rich ? 'assets/models/auth_door_baked.glb' : 'assets/models/auth_door.glb';
+      const asset = await ctx.loader.load(url).catch(() => ctx.loader.load('assets/models/auth_door.glb'));
       this.door = asset.scene;
       // Author face is +Y after glTF y-up; stand it up to face the camera (+Z).
       this.door.rotation.x = Math.PI / 2;

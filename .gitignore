@@ -21,3 +21,6 @@ __pycache__/
 # keep the small Blender asset lookdev renders (docs/_ref/*.png) as a quality record,
 # but ignore the large web contact-sheet dumps (regenerated via `npm run capture`).
 docs/_ref/web/
+
+# blender bake working textures
+BLENDER/EXPORT/
