@@ -104,20 +104,25 @@ CONFIGS = [
     # AO is pure self-occlusion (no cross-layer shadow decals). Small, tightly
     # stacked joinery -> short AO distance.
     dict(
-        name="cybernetic_module", res=1024, samples=128,
-        ao_distance=0.10, ao_strength=0.85, isolate=True,
+        # The rebuilt spine is far denser (articulated vertebrae, actuators,
+        # fasteners) so it needs a larger atlas for the contact shadows to
+        # resolve; ao_strength eased to 0.7 so the baked occlusion adds seam
+        # depth without muddying the polished titanium.
+        name="cybernetic_module", res=2048, samples=128,
+        ao_distance=0.10, ao_strength=0.7, isolate=True,
         # Keep the smooth ceramic covers and the thin glowing neural filaments
         # pristine — AO only enriches the dense joinery (vertebral core, muscle
         # bundle + bands, heatsink fins).
         skip={"Dermal_Shell_L", "Dermal_Shell_R", "Neural_Conductor"},
-        render_kw=dict(cam_loc=(1.9, -2.3, 1.2), target=(0, 0.0, 0.8),
-                       lens=58, samples=90, res=(900, 1000)),
+        render_kw=dict(cam_loc=(1.9, -2.3, 1.15), target=(0, 0.0, 0.8),
+                       lens=60, samples=90, res=(900, 1050),
+                       rim_color=(0.34, 0.48, 0.52)),
         explode={
-            "Dermal_Shell_L": Vector((0.55, 0, 0)),
-            "Dermal_Shell_R": Vector((-0.55, 0, 0)),
-            "Muscle_Layer": Vector((0, -0.34, 0)),
-            "Neural_Conductor": Vector((0, 0.20, 0)),
-            "Memory_Coprocessor": Vector((0, 0, 0.34)),
+            "Dermal_Shell_L": Vector((0.60, 0, 0)),
+            "Dermal_Shell_R": Vector((-0.60, 0, 0)),
+            "Muscle_Layer": Vector((0, -0.40, 0)),
+            "Neural_Conductor": Vector((0, 0.22, 0)),
+            "Memory_Coprocessor": Vector((0, 0, 0.42)),
         },
     ),
     # Auth-door iris: STATIC assembly -> mutual occlusion (nested rings/bolts cast

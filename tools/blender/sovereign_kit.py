@@ -11,9 +11,26 @@ These compose ON TOP of sovereign_bpy.py (S). Nothing here is used by the
 door/infrastructure builders — it exists for the HUMAN REVISION hero rebuild.
 """
 import math
+import bpy
 import bmesh
 from mathutils import Vector, Matrix  # type: ignore
 import sovereign_bpy as S
+
+
+def boolean_diff(obj, cutter, apply=True, remove_cutter=True):
+    """Subtract `cutter` from `obj` (EXACT solver). Used to punch a portal
+    opening through a solid bulkhead, machined recesses, etc."""
+    md = obj.modifiers.new("Bool", "BOOLEAN")
+    md.operation = "DIFFERENCE"
+    md.object = cutter
+    md.solver = "EXACT"
+    if apply:
+        bpy.context.view_layer.objects.active = obj
+        obj.select_set(True)
+        bpy.ops.object.modifier_apply(modifier=md.name)
+        if remove_cutter:
+            bpy.data.objects.remove(cutter, do_unlink=True)
+    return obj
 
 
 # ----------------------------------------------------------------------------
