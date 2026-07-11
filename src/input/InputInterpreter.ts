@@ -1,0 +1,167 @@
+/**
+ * SOVEREIGN//77 — Input Interpreter + Behavioral Recorder.
+ * Raw input is never wired to the camera or timeline directly. It becomes an
+ * INTENT (a target nudge) and, at the same time, a behavioral sample. The
+ * recorder is the quiet spine of the twist: the subject is being profiled the
+ * whole time. Session-only — nothing leaves the browser.
+ */
+import type { Engine } from '../engine/core/Engine';
+import { getState, patchBehavior } from '../state/store';
+import { clamp } from '../util/math';
+
+export class InputInterpreter {
+  private lastMove = performance.now();
+  private lastPos = { x: 0, y: 0 };
+  private travel = 0;
+  private scrollTempo = 0;
+  private hesitation = 0;
+  private intents = 0;
+  private dwellStart = 0;
+  private dwellTotal = 0;
+  private dwellCount = 0;
+  private promptAt = 0;
+  private latencySum = 0;
+  private latencyCount = 0;
+  private dragging = false;
+  private dragStartX = 0;
+  private raf = 0;
+
+  constructor(private engine: Engine, private root: HTMLElement) {}
+
+  attach() {
+    const opt = { passive: false } as AddEventListenerOptions;
+    window.addEventListener('pointermove', this.onMove, { passive: true });
+    window.addEventListener('pointerdown', this.onDown);
+    window.addEventListener('pointerup', this.onUp);
+    window.addEventListener('wheel', this.onWheel, opt);
+    window.addEventListener('keydown', this.onKey);
+    // Touch: vertical swipe = scrub, tap-hold = press.
+    window.addEventListener('touchmove', this.onTouch, opt);
+    this.tick();
+  }
+
+  detach() {
+    window.removeEventListener('pointermove', this.onMove);
+    window.removeEventListener('pointerdown', this.onDown);
+    window.removeEventListener('pointerup', this.onUp);
+    window.removeEventListener('wheel', this.onWheel);
+    window.removeEventListener('keydown', this.onKey);
+    window.removeEventListener('touchmove', this.onTouch);
+    cancelAnimationFrame(this.raf);
+  }
+
+  /** Call when the system poses a choice, to measure decision latency. */
+  markPrompt() {
+    this.promptAt = performance.now();
+  }
+
+  private registerAction() {
+    if (this.promptAt) {
+      this.latencySum += performance.now() - this.promptAt;
+      this.latencyCount++;
+      this.promptAt = 0;
+    }
+    this.intents++;
+  }
+
+  private onMove = (e: PointerEvent) => {
+    const nx = (e.clientX / window.innerWidth) * 2 - 1;
+    const ny = -((e.clientY / window.innerHeight) * 2 - 1);
+    this.engine.setPointer(nx, ny);
+
+    const dx = e.clientX - this.lastPos.x;
+    const dy = e.clientY - this.lastPos.y;
+    this.travel += Math.hypot(dx, dy);
+    this.lastPos = { x: e.clientX, y: e.clientY };
+    this.lastMove = performance.now();
+
+    if (this.dragging) {
+      const drag = (e.clientX - this.dragStartX) / window.innerWidth;
+      // Horizontal drag scrubs the timeline (director-limited feel via damping).
+      this.engine.timeline.nudge(drag * 0.02);
+      this.dragStartX = e.clientX;
+    }
+
+    // Publish the cursor for the diegetic tracking dot.
+    this.root.style.setProperty('--cx', `${e.clientX}px`);
+    this.root.style.setProperty('--cy', `${e.clientY}px`);
+  };
+
+  private onDown = (e: PointerEvent) => {
+    this.dragging = true;
+    this.dragStartX = e.clientX;
+    this.dwellStart = performance.now();
+    this.engine.setPressed(true);
+    this.registerAction();
+  };
+
+  private onUp = () => {
+    this.dragging = false;
+    if (this.dwellStart) {
+      this.dwellTotal += performance.now() - this.dwellStart;
+      this.dwellCount++;
+      this.dwellStart = 0;
+    }
+    this.engine.setPressed(false);
+  };
+
+  private onWheel = (e: WheelEvent) => {
+    e.preventDefault();
+    const d = clamp(e.deltaY / 900, -0.08, 0.08);
+    this.engine.timeline.nudge(d);
+    this.scrollTempo = this.scrollTempo * 0.9 + Math.abs(d) * 0.1;
+    this.registerAction();
+  };
+
+  private onTouch = (e: TouchEvent) => {
+    if (e.touches.length === 1) {
+      e.preventDefault();
+      const t = e.touches[0];
+      const nx = (t.clientX / window.innerWidth) * 2 - 1;
+      const ny = -((t.clientY / window.innerHeight) * 2 - 1);
+      this.engine.setPointer(nx, ny);
+    }
+  };
+
+  private onKey = (e: KeyboardEvent) => {
+    // Accessibility path: keyboard walks the film.
+    if (e.key === 'ArrowDown' || e.key === 'ArrowRight' || e.key === ' ') {
+      this.engine.timeline.nudge(0.12);
+      this.registerAction();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowLeft') {
+      this.engine.timeline.nudge(-0.12);
+    } else if (e.key === 'Enter') {
+      this.engine.setPressed(true);
+      setTimeout(() => this.engine.setPressed(false), 2100); // auto press-hold
+    } else if (e.key >= '1' && e.key <= '6') {
+      // debug/menu jump handled by narrative director via custom event
+      window.dispatchEvent(new CustomEvent('sovereign:jump', { detail: Number(e.key) - 1 }));
+    }
+  };
+
+  private tick = () => {
+    this.raf = requestAnimationFrame(this.tick);
+    const now = performance.now();
+    const idle = now - this.lastMove;
+    if (idle > 500) this.hesitation += 16;
+
+    const meanDwell = this.dwellCount ? this.dwellTotal / this.dwellCount : 0;
+    const latency = this.latencyCount ? this.latencySum / this.latencyCount : 0;
+
+    // Replica completion grows with engagement across the film (0..1).
+    const engaged =
+      clamp(this.travel / 26000) * 0.34 +
+      clamp(this.intents / 24) * 0.34 +
+      clamp(getState().sceneIndex / 5) * 0.32;
+
+    patchBehavior({
+      cursorTravel: this.travel,
+      meanDwell,
+      decisionLatency: latency,
+      scrollTempo: clamp(this.scrollTempo * 12),
+      hesitation: this.hesitation,
+      intents: this.intents,
+      replica: clamp(engaged),
+    });
+  };
+}

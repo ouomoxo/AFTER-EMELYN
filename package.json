@@ -1,0 +1,26 @@
+{
+  "name": "sovereign-77",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "SOVEREIGN//77 — an interactive short film. The system is not waiting for your input.",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview --host --port 4173",
+    "typecheck": "tsc --noEmit",
+    "assets": "python3 tools/asset-pipeline/build_assets.py",
+    "capture": "node tools/capture/shoot.mjs"
+  },
+  "dependencies": {
+    "gsap": "^3.12.5",
+    "three": "^0.169.0",
+    "zustand": "^4.5.5"
+  },
+  "devDependencies": {
+    "@types/three": "^0.169.0",
+    "playwright": "^1.48.0",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.10"
+  }
+}

@@ -1,0 +1,23 @@
+# dependencies
+node_modules/
+.pnpm-store/
+
+# build output
+dist/
+*.tsbuildinfo
+
+# blender / python
+__pycache__/
+*.blend1
+*.blend2
+/tmp/bpytest/
+
+# editor / os
+.DS_Store
+.vscode/
+*.log
+
+# capture working files
+# keep the small Blender asset lookdev renders (docs/_ref/*.png) as a quality record,
+# but ignore the large web contact-sheet dumps (regenerated via `npm run capture`).
+docs/_ref/web/

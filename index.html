@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="en" data-sovereign="cold">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1.0, user-scalable=no" />
+    <meta name="color-scheme" content="dark" />
+    <meta name="theme-color" content="#050506" />
+    <title>SOVEREIGN//77</title>
+    <meta name="description" content="THE SYSTEM IS NOT WAITING FOR YOUR INPUT." />
+    <meta name="robots" content="noindex" />
+    <!--
+      Critical boot CSS is inlined so the very first paint is obsidian black.
+      There must never be a flash of white: the browser opening this document
+      is, in-world, a cold-start of a SOVEREIGN access terminal.
+    -->
+    <style>
+      :root {
+        color-scheme: dark;
+        /* Canonical palette — see docs/04_ART_DIRECTION.md. Do not add colors here. */
+        --obsidian: #050506;
+        --graphite: #14161a;
+        --surgical: #e8ecec;
+        --cyan: #4fd4d0;
+        --amber: #e0a038;
+        --emergency: #e0322a;
+      }
+      * { margin: 0; padding: 0; box-sizing: border-box; }
+      html, body {
+        height: 100%;
+        background: #050506;
+        color: #e8ecec;
+        overflow: hidden;
+        overscroll-behavior: none;
+        touch-action: none;
+        font-family: "Neue Haas", "Helvetica Neue", "Inter", system-ui, sans-serif;
+        -webkit-font-smoothing: antialiased;
+        text-rendering: optimizeLegibility;
+      }
+      body { position: fixed; inset: 0; cursor: none; }
+      /* Pre-JS boot glyph. Replaced the instant the engine takes over. */
+      #boot {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: #050506;
+        z-index: 9999;
+        transition: opacity 900ms ease;
+      }
+      #boot .sig {
+        font-family: "SF Mono", "JetBrains Mono", ui-monospace, monospace;
+        font-size: 11px;
+        letter-spacing: 0.42em;
+        text-transform: uppercase;
+        color: #4a5054;
+        opacity: 0;
+        animation: bootpulse 3.2s ease-in-out 400ms infinite;
+      }
+      @keyframes bootpulse {
+        0%, 100% { opacity: 0.08; }
+        50% { opacity: 0.55; }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #boot .sig { animation: none; opacity: 0.4; }
+      }
+      /* The <noscript> path is also in-world: a terminal that refuses degraded access. */
+      .nojs {
+        position: fixed; inset: 0; display: grid; place-items: center;
+        background: #050506; color: #4a5054; padding: 2rem; text-align: center;
+        font-family: ui-monospace, monospace; font-size: 12px; letter-spacing: 0.3em;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="boot"><span class="sig">INITIALIZING COGNITIVE INTERFACE</span></div>
+    <noscript>
+      <div class="nojs">SOVEREIGN REQUIRES AN ACTIVE COGNITIVE INTERFACE.<br />SCRIPTING DISABLED — ACCESS WITHHELD.</div>
+    </noscript>
+    <div id="stage" aria-hidden="true"></div>
+    <div id="interface"></div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>

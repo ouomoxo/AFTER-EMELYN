@@ -1,0 +1,272 @@
+# 07 — ASSET REGISTRY
+# SOVEREIGN//77 — the single manifest of every authored 3D asset.
+# The runtime, the Blender build orchestrator, and the performance budget all
+# read against this file. It MUST stay 1:1 with tools/blender/build_*.py.
+#
+# See: 06_BLENDER_PIPELINE.md (how assets are built) and
+#      10_PERFORMANCE_BUDGET.md (why the tri/draw budgets are what they are).
+#
+# YAML contract per asset:
+#   id            unique slug, matches build script name (build_<id>.py)
+#   movement      which movement(s) it appears in
+#   build_script  path to the per-asset bpy script
+#   output        shipped GLB path (Draco), read by the runtime
+#   tier          hero | mid | bg   (attention + budget class, not perf tier A-D)
+#   tri_budget    max triangles for the shipped mesh (inspect gate enforces)
+#   materials     canonical roles from sovereign_bpy.py :: mats()
+#   bundle        streaming group (matches src/narrative/acts.ts bundle)
+#   status        planned | blockout | authored | exported | parity_verified | shipped
+#   notes         freeform
+
+meta:
+  project: "SOVEREIGN//77"
+  blender: "4.5 LTS"
+  bpy_lib: "tools/blender/sovereign_bpy.py"
+  orchestrator: "tools/asset-pipeline/build_assets.py"
+  export: "neutral PBR GLB, Draco level 6, tangents, no baked view transform"
+  models_dir: "public/assets/models/"
+  # Pipeline capability (headless bpy build + Cycles CPU lookdev + neutral GLB
+  # export) is proven by the shared library; per-asset build_*.py are authored
+  # per the phase plan in 13_REVIEW_LOG.md.
+
+legend:
+  tier:
+    hero: "the one center of its scene; highest fidelity; shallow-DoF scrutiny"
+    mid: "supporting, often instanced; readable but not the focus"
+    bg:  "structure/atmosphere; heavily instanced; never draws the eye"
+  status:
+    planned:          "registry entry exists; build script not yet written"
+    blockout:         "rough proportion pass in bpy; not final geometry"
+    authored:         "final geometry + canonical materials in build script"
+    exported:         "GLB exported to public/assets/models and inspected"
+    parity_verified:  "engine frame matches Cycles lookdev reference (P6)"
+    shipped:          "in the running film, within budget, signed off by Critic"
+
+# Canonical material roles (from sovereign_bpy.py :: mats()). Assets may only
+# reference roles from this list — introducing a new material fails the inspect
+# gate. Kept here for quick cross-reference.
+materials_vocabulary:
+  - M_Obsidian
+  - M_ObsidianMatte
+  - M_Graphite
+  - M_GraphiteWorn
+  - M_Titanium
+  - M_TitaniumPolish
+  - M_Ceramic
+  - M_CeramicMatte
+  - M_Brass
+  - M_SmokedGlass
+  - M_Carbon
+  - M_Data
+  - M_DataSoft
+  - M_Authority
+  - M_Warning
+  - M_Emergency
+
+assets:
+  # ------------------------------------------------------------------ PROLOGUE
+  - id: auth_door
+    movement: "PROLOGUE — HANDSHAKE"
+    build_script: "tools/blender/build_auth_door.py"
+    output: "public/assets/models/auth_door.glb"
+    tier: hero
+    tri_budget: 42000
+    materials: [M_Graphite, M_Obsidian, M_ObsidianMatte, M_Data, M_Authority]
+    bundle: core
+    status: planned
+    notes: >
+      The "pure black" that is revealed to be a vast metal door. Massive scale,
+      deep bevels, panel_cut() seams that light cyan (data) then white
+      (authority) as it opens. Silhouette must read at 100mm compression.
+
+  - id: auth_ring
+    movement: "PROLOGUE — HANDSHAKE"
+    build_script: "tools/blender/build_auth_ring.py"
+    output: "public/assets/models/auth_ring.glb"
+    tier: mid
+    tri_budget: 9000
+    materials: [M_Titanium, M_TitaniumPolish, M_Data]
+    bundle: core
+    status: planned
+    notes: >
+      The authentication ring that winds around the press-and-hold point. Built
+      from tube()/torus(); the cyan progress is a runtime-driven emissive arc on
+      M_Data, not baked. Good first proof asset for the export path.
+
+  # -------------------------------------------------------------------- ACT II
+  - id: cybernetic_module
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"
+    output: "public/assets/models/cybernetic_module.glb"
+    tier: hero
+    tri_budget: 180000
+    materials: [M_Ceramic, M_Carbon, M_Titanium, M_TitaniumPolish, M_Graphite, M_SmokedGlass, M_Brass, M_Data, M_DataSoft, M_Warning]
+    bundle: augment
+    status: planned
+    notes: >
+      HERO of the film. Assembled from the five layer sub-assets below into one
+      GLB with named nodes so the runtime can drive the exploded view per layer.
+      Medical device x military x luxury industrial — NOT a robot. tri_budget is
+      the sum of the five layers; each layer node stays individually addressable.
+
+  - id: cybernetic_layer_dermal
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"   # built with the module
+    output: "public/assets/models/cybernetic_module.glb#dermal_shell"
+    tier: hero
+    tri_budget: 46000
+    materials: [M_Ceramic, M_CeramicMatte, M_Obsidian]
+    bundle: augment
+    status: planned
+    notes: "LAYER 01 · DERMAL SHELL — surgical-white ceramic outer skin."
+
+  - id: cybernetic_layer_muscle
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"
+    output: "public/assets/models/cybernetic_module.glb#artificial_muscle"
+    tier: hero
+    tri_budget: 40000
+    materials: [M_Carbon, M_Graphite]
+    bundle: augment
+    status: planned
+    notes: "LAYER 02 · ARTIFICIAL MUSCLE — carbon bundle fibers."
+
+  - id: cybernetic_layer_neural
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"
+    output: "public/assets/models/cybernetic_module.glb#neural_conductor"
+    tier: hero
+    tri_budget: 30000
+    materials: [M_Titanium, M_Data, M_DataSoft]
+    bundle: augment
+    status: planned
+    notes: "LAYER 03 · NEURAL CONDUCTOR — cyan lattice; emission = data."
+
+  - id: cybernetic_layer_spinal
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"
+    output: "public/assets/models/cybernetic_module.glb#spinal_interface"
+    tier: hero
+    tri_budget: 36000
+    materials: [M_Titanium, M_TitaniumPolish, M_Graphite]
+    bundle: augment
+    status: planned
+    notes: "LAYER 04 · SPINAL INTERFACE — precise titanium vertebral joinery."
+
+  - id: cybernetic_layer_memory
+    movement: "ACT II — HUMAN REVISION"
+    build_script: "tools/blender/build_cybernetic_module.py"
+    output: "public/assets/models/cybernetic_module.glb#memory_coprocessor"
+    tier: hero
+    tri_budget: 18000
+    materials: [M_SmokedGlass, M_Brass, M_Data]
+    bundle: augment
+    status: planned
+    notes: >
+      LAYER 05 · MEMORY CO-PROCESSOR — smallest, most precious part; smoked glass
+      over brass; the push-in subject. Where the VOLUNTARY/OVERRIDE anomaly reads.
+
+  # ------------------------------------------------------------------- ACT III
+  - id: prediction_core
+    movement: "ACT III — PREDICTION ENGINE"
+    build_script: "tools/blender/build_prediction_core.py"
+    output: "public/assets/models/prediction_core.glb"
+    tier: hero
+    tri_budget: 120000
+    materials: [M_SmokedGlass, M_Obsidian, M_Data, M_DataSoft, M_Authority]
+    bundle: predict
+    status: planned
+    notes: >
+      Transparent/faceted floating core at the center of the circular hall. The
+      thousands of behavior simulations orbiting it are the data_particle system,
+      not baked geometry. Facets refract; keep smoked-glass transmission honest.
+
+  # -------------------------------------------------------------------- ACT IV
+  - id: vault_sarcophagus
+    movement: "ACT IV — BLACK VAULT"
+    build_script: "tools/blender/build_vault_sarcophagus.py"
+    output: "public/assets/models/vault_sarcophagus.glb"
+    tier: hero
+    tri_budget: 96000
+    materials: [M_Obsidian, M_ObsidianMatte, M_Titanium, M_SmokedGlass, M_Ceramic, M_Brass, M_Data]
+    bundle: vault
+    status: planned
+    notes: >
+      Central data sarcophagus — a reliquary, not a server. Deliberate symmetry;
+      basalt/obsidian body, titanium + oxidized brass fittings, smoked-glass lid
+      that parts to reveal faces/memory fragments (rendered as data, runtime).
+
+  # --------------------------------------------------- SHARED / INFRASTRUCTURE
+  - id: maintenance_drone
+    movement: "ACT I — CITY NERVOUS SYSTEM"
+    build_script: "tools/blender/build_maintenance_drone.py"
+    output: "public/assets/models/maintenance_drone.glb"
+    tier: mid
+    tri_budget: 12000
+    materials: [M_GraphiteWorn, M_Graphite, M_DataSoft]
+    bundle: infra
+    status: planned
+    notes: >
+      Instanced; provides the idle micro-motion when scroll stops. Small cyan
+      status glint only (M_DataSoft). Reused sparingly in Act III periphery.
+
+  - id: server_rack
+    movement: "ACT I — CITY NERVOUS SYSTEM / ACT III"
+    build_script: "tools/blender/build_server_rack.py"
+    output: "public/assets/models/server_rack.glb"
+    tier: bg
+    tri_budget: 9000
+    materials: [M_Graphite, M_ObsidianMatte, M_DataSoft]
+    bundle: infra
+    status: planned
+    notes: "Heavily instanced organ-stack unit. panel_cut() seams; no eye-draw."
+
+  - id: cooling_unit
+    movement: "ACT I — CITY NERVOUS SYSTEM"
+    build_script: "tools/blender/build_cooling_unit.py"
+    output: "public/assets/models/cooling_unit.glb"
+    tier: bg
+    tri_budget: 14000
+    materials: [M_Graphite, M_GraphiteWorn, M_SmokedGlass]
+    bundle: infra
+    status: planned
+    notes: "Heat exchanger / coolant. Source of the steam micro-motion in Act I."
+
+  - id: wall_panel
+    movement: "SHARED KIT"
+    build_script: "tools/blender/build_wall_panel.py"
+    output: "public/assets/models/wall_panel.glb"
+    tier: bg
+    tri_budget: 2600
+    materials: [M_Graphite, M_ObsidianMatte]
+    bundle: infra
+    status: planned
+    notes: >
+      Modular kit panel, arrayed/instanced to build corridors and the vault hall.
+      The workhorse of the ratio budget's 20% graphite. Origin set for tiling.
+
+  - id: fiber_box
+    movement: "ACT I — CITY NERVOUS SYSTEM"
+    build_script: "tools/blender/build_fiber_box.py"
+    output: "public/assets/models/fiber_box.glb"
+    tier: bg
+    tri_budget: 4200
+    materials: [M_Graphite, M_Data, M_DataSoft]
+    bundle: infra
+    status: planned
+    notes: "Fiber junction; cyan data pulses travel its lines (emissive, runtime)."
+
+  - id: data_particle
+    movement: "SHARED (Act I fiber, Act III sims, Epilogue silhouette)"
+    build_script: "tools/blender/build_data_particle.py"
+    output: "public/assets/models/data_particle.glb"
+    tier: bg
+    tri_budget: 80        # per instance; GPU-instanced to thousands at runtime
+    materials: [M_Data]
+    bundle: core
+    status: planned
+    notes: >
+      Single low-poly source mesh (icosphere/spark) GPU-instanced by the runtime
+      particle system. This is the ONLY particle primitive — particles are data
+      or physics, never decorative confetti (anti-cliché). Drives the Act III
+      behavior simulations and the Epilogue silhouette fill.
