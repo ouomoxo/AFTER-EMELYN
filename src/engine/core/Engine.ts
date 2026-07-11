@@ -53,7 +53,7 @@ export class Engine {
     // WebGPU when the device supports it, automatic WebGL2 fallback otherwise —
     // one renderer satisfies "WebGPU 우선, WebGL2 폴백". Init is async (see start()).
     this.renderer = new WebGPURenderer({
-      antialias: this.governor.profile.tier !== 'C',
+      antialias: true, // MSAA on every tier — jagged edges were the biggest "cheap" tell
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.governor.profile.pixelRatioCap));

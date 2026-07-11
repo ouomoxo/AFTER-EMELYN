@@ -110,6 +110,10 @@ export class AugmentationScene extends Scene {
     ctx.camera.posLambda = 2.2;
     ctx.camera.lookLambda = 3.0;
     ctx.camera.setParallaxLimit(0.06, 0.05); // very restrained — this is a held shot
+    // Auto-reveal: the shells part on their own to expose the interior (the
+    // impressive part) instead of resting as a blank closed cylinder. The
+    // subject scrubs onward from here.
+    ctx.timeline.setTarget(0.5);
     setState({ interaction: 'engaged', systemLine: 'SUBJECT FRAME LOADED — REVISION PREVIEW' });
   }
 

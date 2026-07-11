@@ -21,8 +21,10 @@ export interface TierProfile {
 
 const PROFILES: Record<Tier, TierProfile> = {
   A: { tier: 'A', bloom: true, bloomStrength: 0.6, particles: 1.0, pixelRatioCap: 2.0, shadows: true, anisotropy: 8 },
-  B: { tier: 'B', bloom: true, bloomStrength: 0.5, particles: 0.6, pixelRatioCap: 1.75, shadows: true, anisotropy: 4 },
-  C: { tier: 'C', bloom: true, bloomStrength: 0.4, particles: 0.28, pixelRatioCap: 1.4, shadows: false, anisotropy: 2 },
+  B: { tier: 'B', bloom: true, bloomStrength: 0.5, particles: 0.6, pixelRatioCap: 2.0, shadows: true, anisotropy: 8 },
+  // Mobile keeps shadows + retina sharpness now — modern phones handle it, and
+  // the runtime governor still demotes bloom/particles if the frame budget slips.
+  C: { tier: 'C', bloom: true, bloomStrength: 0.45, particles: 0.4, pixelRatioCap: 2.0, shadows: true, anisotropy: 4 },
   D: { tier: 'D', bloom: false, bloomStrength: 0.0, particles: 0.0, pixelRatioCap: 1.25, shadows: false, anisotropy: 1 },
 };
 
