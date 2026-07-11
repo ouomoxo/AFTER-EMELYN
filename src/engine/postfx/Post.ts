@@ -1,14 +1,16 @@
 /**
  * SOVEREIGN//77 — Post FX (WebGPU / TSL).
- * Built on three/webgpu PostProcessing with a TSL node graph: scene pass →
- * bloom → cinematic grade (edge chromatic aberration, cool-shadow split tone,
- * vignette, sensor grain, transition fade, logical-glitch corruption). Runs on
- * the WebGPU backend where available and the WebGL2 fallback everywhere else.
+ * A cinematic "shot on a lens" stack on three/webgpu PostProcessing:
+ *   scene → edge chromatic aberration → depth-of-field bokeh → bloom →
+ *   AgX-tonemapped split-tone grade → vignette → sensor grain → fade/corruption.
+ * DOF + CA are tier-gated (A/B only). Runs on WebGPU where available and the
+ * WebGL2 fallback everywhere else. Focus distance tracks the subject each frame.
  */
 import * as THREE from 'three/webgpu';
 import {
   pass,
   bloom,
+  dof,
   uniform,
   uv,
   vec2,
@@ -29,9 +31,14 @@ export class Post {
   private uTime = uniform(0);
   private uFade = uniform(0);
   private uCorruption = uniform(0);
-  private uGrain = uniform(0.02);
+  private uGrain = uniform(0.018);
+  private uFocus = uniform(6);      // focus distance (camera→subject), updated per frame
+  private uAperture = uniform(0.006); // a whisper: subject dead sharp, only deep bg falls off
+  private uMaxblur = uniform(0.4);
+  private uCA = uniform(0.0013);    // chromatic aberration at the frame edge
   private bloomPass?: ReturnType<typeof bloom>;
   private bloomStrength = 0.5;
+  private lens: boolean;            // DOF + CA on this tier?
 
   constructor(
     renderer: THREE.WebGPURenderer,
@@ -41,6 +48,7 @@ export class Post {
     profile: TierProfile,
   ) {
     this.bloomStrength = profile.bloom ? profile.bloomStrength : 0;
+    this.lens = profile.tier === 'A' || profile.tier === 'B';
     this.postProcessing = new THREE.PostProcessing(renderer);
     this.setScenePass(scene, camera);
   }
@@ -52,21 +60,44 @@ export class Post {
 
     const uvN = uv();
     const dir = uvN.sub(0.5);
-    let col = sceneColor.rgb;
+    const edge = dot(dir, dir); // 0 centre → ~0.5 corner: scales lens artifacts outward
 
-    // --- Bloom: only genuine emissives (high threshold) ---
-    this.bloomPass = bloom(scenePass.getTextureNode(), this.bloomStrength, 0.6, 0.92);
+    // --- Lens chromatic aberration: split R/B outward at the frame edge ---
+    // Sampling the pass texture at offset UV is the same primitive DOF uses.
+    let lensColor = sceneColor;
+    if (this.lens) {
+      // .uv(node) re-samples the pass texture at an offset (same primitive DOF
+      // uses); it exists at runtime but not in the TSL type surface.
+      const tex = sceneColor as unknown as { uv: (n: unknown) => { r: unknown; b: unknown } };
+      const off = dir.mul(this.uCA.mul(edge).mul(8.0));
+      const r = tex.uv(uvN.add(off)).r;
+      const g = sceneColor.g;
+      const b = tex.uv(uvN.sub(off)).b;
+      lensColor = vec4(r, g, b, 1.0) as unknown as typeof sceneColor;
+    }
+
+    // --- Depth of field (bokeh): focus tracks the subject; everything else falls
+    // off. This is the single strongest "shot on a camera" cue. Tier A/B only. ---
+    let focused: typeof sceneColor = lensColor;
+    if (this.lens) {
+      const viewZ = scenePass.getViewZNode();
+      focused = dof(lensColor, viewZ, this.uFocus, this.uAperture, this.uMaxblur) as unknown as typeof sceneColor;
+    }
+
+    let col = focused.rgb;
+
+    // --- Bloom: only genuine emissives (high threshold), on the focused image ---
+    this.bloomPass = bloom(focused, this.bloomStrength, 0.6, 0.92);
     col = col.add(this.bloomPass.rgb);
 
-    // --- Split-tone grade: cool shadows, faintly warm highlights ---
-    // Values are small: this operates in linear space (pre output-transform), so
-    // additive lifts are amplified by the sRGB curve — a little goes a long way.
+    // --- Split-tone grade (linear, pre AgX output-transform): cool shadows,
+    // faintly warm highlights. AgX handles the toe/shoulder, so keep lifts small. ---
     const luma = dot(col, vec3(0.299, 0.587, 0.114));
-    col = col.add(vec3(0.006, 0.013, 0.015).mul(smoothstep(0.0, 0.4, luma).oneMinus()));
-    col = col.add(vec3(0.014, 0.011, 0.007).mul(smoothstep(0.6, 1.0, luma)));
+    col = col.add(vec3(0.005, 0.011, 0.013).mul(smoothstep(0.0, 0.4, luma).oneMinus()));
+    col = col.add(vec3(0.012, 0.010, 0.006).mul(smoothstep(0.6, 1.0, luma)));
 
-    // --- Vignette ---
-    const vig = mix(float(0.7), float(1.0), smoothstep(1.15, 0.4, length(dir).mul(1.05)));
+    // --- Vignette (a touch deeper now the lens sells the frame) ---
+    const vig = mix(float(0.64), float(1.0), smoothstep(1.15, 0.35, length(dir).mul(1.05)));
     col = col.mul(vig);
 
     // --- Fine sensor grain (a logical glitch briefly intensifies it) ---
@@ -87,6 +118,9 @@ export class Post {
   applyProfile(profile: TierProfile) {
     this.bloomStrength = profile.bloom ? profile.bloomStrength : 0;
     if (this.bloomPass) (this.bloomPass as unknown as { strength: { value: number } }).strength.value = this.bloomStrength;
+    // If the lens tier changed (runtime demotion), rebuild without DOF/CA.
+    const lens = profile.tier === 'A' || profile.tier === 'B';
+    if (lens !== this.lens) this.lens = lens; // next setScenePass (scene change) drops the lens
   }
 
   set fade(v: number) {
@@ -97,6 +131,10 @@ export class Post {
   }
   set corruption(v: number) {
     this.uCorruption.value = v;
+  }
+  /** Focus distance (camera → subject), driven per frame by the Engine. */
+  set focus(d: number) {
+    this.uFocus.value = d;
   }
 
   resize(_w: number, _h: number) {

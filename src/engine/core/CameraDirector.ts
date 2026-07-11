@@ -46,6 +46,11 @@ export class CameraDirector {
     this.targetLens = focalMM;
   }
 
+  /** Distance from the eye to what it is looking at — the DOF focus plane. */
+  get focusDistance(): number {
+    return this.pos.distanceTo(this.look);
+  }
+
   /** Immediately place the camera (used on scene entry to avoid a long glide). */
   hardSet(pos: THREE.Vector3Tuple, look: THREE.Vector3Tuple, focalMM: number) {
     this.pos.set(...pos);

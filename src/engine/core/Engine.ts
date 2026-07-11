@@ -57,8 +57,10 @@ export class Engine {
       powerPreference: 'high-performance',
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.governor.profile.pixelRatioCap));
-    this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    this.renderer.toneMappingExposure = 0.82; // restrained; the void stays deep
+    // AgX: filmic highlight rolloff + restrained saturation — reads far more
+    // "shot on film" than ACES here (the lookdev refs already grade in AgX).
+    this.renderer.toneMapping = THREE.AgXToneMapping;
+    this.renderer.toneMappingExposure = 0.78; // keep surgical white off the clip point
     this.renderer.outputColorSpace = THREE.SRGBColorSpace;
     this.renderer.shadowMap.enabled = this.governor.profile.shadows;
     this.renderer.shadowMap.type = THREE.PCFSoftShadowMap;
@@ -262,6 +264,8 @@ export class Engine {
       }
     }
     this.camera.update(dt, this.size.x / this.size.y);
+    // Drive the DOF focus plane to the subject the camera is framing.
+    if (this.post) this.post.focus = this.camera.focusDistance;
 
     setState({ progress: this.timeline.progress, shot: this.timeline.shot });
 
