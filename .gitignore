@@ -24,3 +24,6 @@ docs/_ref/web/
 
 # blender bake working textures
 BLENDER/EXPORT/
+
+# prerender frame-sequence working dumps (webm is the deliverable)
+public/assets/video/infra_seq/
