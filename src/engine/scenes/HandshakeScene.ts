@@ -11,6 +11,7 @@ import type { SceneId } from '../../narrative/acts';
 import { setState } from '../../state/store';
 import { clamp, damp, smoothstep } from '../../util/math';
 import { PALETTE } from '../../util/palette';
+import { makePointsMaterial } from '../materials/Environment';
 
 const HOLD_TIME = 2.0;
 
@@ -100,16 +101,14 @@ export class HandshakeScene extends Scene {
       pos[i * 3 + 2] = Math.random() * 6 - 1;
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.dust = new THREE.Points(
-      g,
-      new THREE.PointsMaterial({ color: 0x2a3438, size: 0.012, transparent: true, opacity: 0.5, depthWrite: false }),
-    );
+    this.dust = new THREE.Points(g, makePointsMaterial(0x2a3438, 0.02, 0.5));
     this.three.add(this.dust);
   }
 
   enter(ctx: SceneContext): void {
     // Camera starts pushed toward the core, 100mm, very slow creep.
-    ctx.camera.hardSet([0, 0.1, 5.2], [0, 0, 0], 100);
+    // Portrait cut holds a touch further back so the vault door fits the frame.
+    ctx.camera.hardSet([0, 0.1, ctx.portrait ? 6.4 : 5.2], [0, 0, 0], 100);
     ctx.camera.posLambda = 0.5;
     ctx.camera.setParallaxLimit(0.18, 0.1);
     setState({ interaction: 'observing', systemLine: 'INCOMING COGNITIVE SIGNATURE' });

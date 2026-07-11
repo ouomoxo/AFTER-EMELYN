@@ -92,8 +92,10 @@ export class PredictionScene extends Scene {
   update(ctx: SceneContext, dt: number, time: number): void {
     const p = ctx.timeline.progress;
 
-    // Push in toward the core across the movement.
-    const camZ = remap(p, 0, 1, 12, 4.5, smoothstep);
+    // Push in toward the core across the movement. In the portrait cut the wide
+    // hall needs more distance so the orrery fits the narrow frame.
+    const z = ctx.portrait ? 1.35 : 1.0;
+    const camZ = remap(p, 0, 1, 12 * z, 4.5 * z, smoothstep);
     ctx.camera.setTarget([ctx.pointer.x * 1.2, 1.5 + ctx.pointer.y * 0.6, camZ], [0, 1.4, 0]);
 
     // Gyroscopes counter-rotate; the core breathes.

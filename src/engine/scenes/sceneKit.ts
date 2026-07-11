@@ -6,7 +6,7 @@
  */
 import * as THREE from 'three';
 import { PALETTE } from '../../util/palette';
-import { makeGlowSprite } from '../materials/Environment';
+import { makePointsMaterial } from '../materials/Environment';
 
 /** A cold three-point rig anchored on a target. */
 export function coldRig(scene: THREE.Scene, target: THREE.Vector3Tuple, keyI = 120) {
@@ -43,16 +43,7 @@ export class DataStream {
       this.velocities[i] = 0.5 + Math.random() * 2.5;
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    const mat = new THREE.PointsMaterial({
-      color,
-      size,
-      map: makeGlowSprite(48, '#' + new THREE.Color(color).getHexString()),
-      transparent: true,
-      opacity: 0.85,
-      depthWrite: false,
-      blending: THREE.AdditiveBlending,
-    });
-    this.points = new THREE.Points(g, mat);
+    this.points = new THREE.Points(g, makePointsMaterial(color, size, 0.85));
   }
 
   update(dt: number, dir = new THREE.Vector3(0, 1, 0), speed = 1) {
@@ -137,15 +128,6 @@ export function humanoidCloud(count: number, color = PALETTE.cyan): THREE.Points
   }
   g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
-  const mat = new THREE.PointsMaterial({
-    color,
-    size: 0.05, // must read as a luminous body at an 85mm portrait distance
-    map: makeGlowSprite(48, '#' + new THREE.Color(color).getHexString()),
-    transparent: true,
-    opacity: 0.95,
-    depthWrite: false,
-    blending: THREE.AdditiveBlending,
-    sizeAttenuation: true,
-  });
-  return new THREE.Points(g, mat);
+  // 0.05 world units — must read as a luminous body at portrait distance.
+  return new THREE.Points(g, makePointsMaterial(color, 0.05, 0.95));
 }

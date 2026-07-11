@@ -22,6 +22,8 @@ export interface SceneContext {
   pointer: THREE.Vector2;
   /** Whether reduced-motion is active (Tier D). */
   reducedMotion: boolean;
+  /** Portrait / touch device → scenes reframe for the vertical cut. */
+  portrait: boolean;
   /** Whether this is a returning subject. */
   secondVisit: boolean;
   /** Post-FX hooks a scene may drive (logical glitch, manual fade). */

@@ -5,7 +5,11 @@
  * and shared by every scene. No HDRI download — keeps the bootstrap lean.
  */
 import * as THREE from 'three';
-import type { WebGPURenderer } from 'three/webgpu';
+import { PointsNodeMaterial, type WebGPURenderer } from 'three/webgpu';
+import { vec3, uniform } from 'three/tsl';
+
+/** PointsNodeMaterial with an animatable opacity uniform exposed as `.uOpacity`. */
+export type GlowPoints = PointsNodeMaterial & { uOpacity: { value: number } };
 
 export function buildEnvironment(renderer: WebGPURenderer): THREE.Texture | null {
   const scene = new THREE.Scene();
@@ -48,6 +52,26 @@ export function buildEnvironment(renderer: WebGPURenderer): THREE.Texture | null
     }
   });
   return env;
+}
+
+/**
+ * A WebGPU-native glowing round point material. Standard PointsMaterial with a
+ * canvas map does NOT render on the WebGPU backend, so points use a
+ * PointsNodeMaterial whose alpha is a TSL circular falloff on the point-sprite UV.
+ */
+export function makePointsMaterial(hex: number, size: number, opacity = 0.9): GlowPoints {
+  const m = new PointsNodeMaterial() as GlowPoints;
+  m.size = size;
+  m.sizeAttenuation = true;
+  const c = new THREE.Color(hex);
+  const uOpacity = uniform(opacity);
+  m.colorNode = vec3(c.r, c.g, c.b);
+  m.opacityNode = uOpacity;
+  m.uOpacity = uOpacity;
+  m.transparent = true;
+  m.depthWrite = false;
+  m.blending = THREE.AdditiveBlending;
+  return m;
 }
 
 /** A soft radial "data" sprite texture, reused by particle systems. */

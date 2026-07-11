@@ -98,7 +98,11 @@ export class AugmentationScene extends Scene {
   }
 
   enter(ctx: SceneContext): void {
-    ctx.camera.hardSet([0, 0.95, this.radius], [0, 0.85, 0], 62);
+    // Mobile cut: the module is a tall vertical spine — it OWNS a portrait frame,
+    // so come closer (a more intimate, detail-forward read) than the wide cut.
+    this.radius = ctx.portrait ? 4.0 : 4.6;
+    const lens = ctx.portrait ? 52 : 62;
+    ctx.camera.hardSet([0, 0.95, this.radius], [0, 0.85, 0], lens);
     ctx.camera.posLambda = 2.2;
     ctx.camera.lookLambda = 3.0;
     ctx.camera.setParallaxLimit(0.06, 0.05); // very restrained — this is a held shot

@@ -91,6 +91,8 @@ export class Engine {
       this.camera.cam.updateProjectionMatrix();
     }
     this.post?.resize(w, h);
+    const portrait = w < h || (navigator.maxTouchPoints > 1 && w < 900);
+    if (portrait !== getState().mobile) setState({ mobile: portrait });
   }
 
   private ctx(): SceneContext {
@@ -102,6 +104,7 @@ export class Engine {
       profile: this.governor.profile,
       pointer: this.pointer,
       reducedMotion: getState().reducedMotion,
+      portrait: this.size.x < this.size.y,
       secondVisit: getState().secondVisit,
       fx: {
         corruption: (v: number) => {

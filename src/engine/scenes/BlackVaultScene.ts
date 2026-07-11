@@ -10,7 +10,7 @@ import { Scene, type SceneContext } from './Scene';
 import type { SceneId } from '../../narrative/acts';
 import { PALETTE } from '../../util/palette';
 import { damp, lerp, remap, smoothstep } from '../../util/math';
-import { makeGlowSprite } from '../materials/Environment';
+import { makePointsMaterial, type GlowPoints } from '../materials/Environment';
 import { setState } from '../../state/store';
 
 export class BlackVaultScene extends Scene {
@@ -19,7 +19,7 @@ export class BlackVaultScene extends Scene {
   private lid?: THREE.Object3D;
   private lidBaseY = 0;
   private fragments!: THREE.Points;
-  private fragMat?: THREE.PointsMaterial;
+  private fragMat?: GlowPoints;
   private opened = false;
   private uiShifted = false;
 
@@ -82,7 +82,7 @@ export class BlackVaultScene extends Scene {
       pos[i * 3 + 2] = (Math.random() - 0.5) * 0.8;
     }
     g.setAttribute('position', new THREE.BufferAttribute(pos, 3));
-    this.fragMat = new THREE.PointsMaterial({ color: 0xbfe9e6, size: 0.02, map: makeGlowSprite(32, '#bfe9e6'), transparent: true, opacity: 0, depthWrite: false, blending: THREE.AdditiveBlending });
+    this.fragMat = makePointsMaterial(0xbfe9e6, 0.03, 0);
     this.fragments = new THREE.Points(g, this.fragMat);
     this.three.add(this.fragments);
   }
@@ -98,8 +98,10 @@ export class BlackVaultScene extends Scene {
   update(ctx: SceneContext, dt: number, time: number): void {
     const p = ctx.timeline.progress;
 
-    // Slow approach, then rise to look into the opened core.
-    const camZ = remap(p, 0, 0.7, 8, 3.4, smoothstep);
+    // Slow approach, then rise to look into the opened core. The portrait cut
+    // holds further back so the wide, symmetric reliquary reads in a tall frame.
+    const z = ctx.portrait ? 1.4 : 1.0;
+    const camZ = remap(p, 0, 0.7, 8 * z, 3.4 * z, smoothstep);
     const camY = remap(p, 0.5, 1, 1.5, 2.4, smoothstep);
     ctx.camera.setTarget([ctx.pointer.x * 0.6, camY, camZ], [0, lerp(0.9, 1.1, p), 0]);
 
@@ -110,7 +112,7 @@ export class BlackVaultScene extends Scene {
         this.lid.position.y = this.lidBaseY + open * 0.9;
         this.lid.position.z = -open * 1.2;
       }
-      if (this.fragMat) this.fragMat.opacity = damp(this.fragMat.opacity, open * 0.9, 2, dt);
+      if (this.fragMat) this.fragMat.uOpacity.value = damp(this.fragMat.uOpacity.value, open * 0.9, 2, dt);
       // fragments rise and disperse
       const arr = (this.fragments.geometry.getAttribute('position') as THREE.BufferAttribute).array as Float32Array;
       for (let i = 0; i < arr.length; i += 3) {

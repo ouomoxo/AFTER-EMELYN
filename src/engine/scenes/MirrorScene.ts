@@ -59,7 +59,10 @@ export class MirrorScene extends Scene {
   };
 
   enter(ctx: SceneContext): void {
-    ctx.camera.hardSet([0, 1.2, 4.4], [0, 1.0, 0], 85);
+    // Mobile cut: a human figure is a portrait subject — pull back and drop the
+    // look-at so the full silhouette stands head-to-toe in the vertical frame.
+    if (ctx.portrait) ctx.camera.hardSet([0, 1.0, 5.6], [0, 0.85, 0], 60);
+    else ctx.camera.hardSet([0, 1.2, 4.4], [0, 1.0, 0], 85);
     ctx.camera.posLambda = 0.8;
     ctx.camera.setParallaxLimit(0.12, 0.08);
     ctx.timeline.drive(0);

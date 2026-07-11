@@ -40,6 +40,8 @@ export interface SovereignState {
   /** Which render backend actually resolved at boot. */
   backend: 'webgpu' | 'webgl';
   reducedMotion: boolean;
+  /** Portrait / touch device → the separate mobile director's cut. */
+  mobile: boolean;
   muted: boolean;
   audioReady: boolean;
   secondVisit: boolean;
@@ -73,6 +75,7 @@ export const store = createStore<SovereignState>(() => ({
   tier: 'B',
   backend: 'webgl',
   reducedMotion: false,
+  mobile: false,
   muted: false,
   audioReady: false,
   secondVisit: false,

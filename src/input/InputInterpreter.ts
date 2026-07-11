@@ -37,6 +37,7 @@ export class InputInterpreter {
     window.addEventListener('keydown', this.onKey);
     // Touch: vertical swipe = scrub, tap-hold = press.
     window.addEventListener('touchmove', this.onTouch, opt);
+    window.addEventListener('touchend', this.onTouchEnd);
     this.tick();
   }
 
@@ -47,6 +48,7 @@ export class InputInterpreter {
     window.removeEventListener('wheel', this.onWheel);
     window.removeEventListener('keydown', this.onKey);
     window.removeEventListener('touchmove', this.onTouch);
+    window.removeEventListener('touchend', this.onTouchEnd);
     cancelAnimationFrame(this.raf);
   }
 
@@ -113,6 +115,7 @@ export class InputInterpreter {
     this.registerAction();
   };
 
+  private lastTouchY: number | null = null;
   private onTouch = (e: TouchEvent) => {
     if (e.touches.length === 1) {
       e.preventDefault();
@@ -120,7 +123,17 @@ export class InputInterpreter {
       const nx = (t.clientX / window.innerWidth) * 2 - 1;
       const ny = -((t.clientY / window.innerHeight) * 2 - 1);
       this.engine.setPointer(nx, ny);
+      // Vertical swipe scrubs the film playhead (the mobile cut's scroll).
+      if (this.lastTouchY !== null) {
+        const dy = this.lastTouchY - t.clientY; // swipe up → advance
+        this.engine.timeline.nudge((dy / window.innerHeight) * 1.1);
+        this.scrollTempo = this.scrollTempo * 0.9 + Math.abs(dy / window.innerHeight) * 0.1;
+      }
+      this.lastTouchY = t.clientY;
     }
+  };
+  private onTouchEnd = () => {
+    this.lastTouchY = null;
   };
 
   private onKey = (e: KeyboardEvent) => {
