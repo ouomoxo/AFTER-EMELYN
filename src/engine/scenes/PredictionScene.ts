@@ -60,7 +60,7 @@ export class PredictionScene extends Scene {
 
     // Thousands of behavior simulations — glowing sprites orbiting the core.
     const simTex = makeGlowSprite(32, '#4fd4d0');
-    const N = Math.floor(900 * ctx.profile.particles + 120);
+    const N = Math.floor(620 * ctx.profile.particles + 90);
     for (let i = 0; i < N; i++) {
       const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: simTex, color: PALETTE.cyan, transparent: true, opacity: 0.5, blending: THREE.AdditiveBlending, depthWrite: false }));
       const a = Math.random() * Math.PI * 2;

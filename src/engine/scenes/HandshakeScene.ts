@@ -19,6 +19,8 @@ export class HandshakeScene extends Scene {
   private door?: THREE.Object3D;
   private leafL?: THREE.Object3D;
   private leafR?: THREE.Object3D;
+  private leafLBase = new THREE.Vector3();
+  private leafRBase = new THREE.Vector3();
   private core?: THREE.Object3D;
   private coreMat?: THREE.MeshStandardMaterial;
   private key!: THREE.SpotLight;
@@ -47,6 +49,8 @@ export class HandshakeScene extends Scene {
 
       this.leafL = asset.parts['Leaf_L'];
       this.leafR = asset.parts['Leaf_R'];
+      if (this.leafL) this.leafLBase.copy(this.leafL.position);
+      if (this.leafR) this.leafRBase.copy(this.leafR.position);
       this.core = asset.parts['Core'];
       const coreMesh = this.core as THREE.Mesh;
       if (coreMesh?.isMesh) this.coreMat = coreMesh.material as THREE.MeshStandardMaterial;
@@ -157,8 +161,9 @@ export class HandshakeScene extends Scene {
       this.authTime = (performance.now() - this.authStart) / 1000;
       const t = this.authTime;
       const open = smoothstep(clamp((t - 0.35) / 1.5)); // leaves part after the silent beat
-      if (this.leafL) this.leafL.position.z = -open * 1.6; // along door width after standup
-      if (this.leafR) this.leafR.position.z = open * 1.6;
+      // Part horizontally along the seam (local X survives the stand-up rotation).
+      if (this.leafL) this.leafL.position.x = this.leafLBase.x - open * 2.4;
+      if (this.leafR) this.leafR.position.x = this.leafRBase.x + open * 2.4;
       // Dolly the camera forward through the widening gap.
       const push = smoothstep(clamp((t - 0.6) / 2.2));
       ctx.camera.posLambda = 1.1;

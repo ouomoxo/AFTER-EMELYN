@@ -20,6 +20,7 @@ export class InfrastructureScene extends Scene {
   private stream!: DataStream;
   private drones: THREE.Object3D[] = [];
   private racks: THREE.Object3D[] = [];
+  private travelLight!: THREE.PointLight;
   private lookedBack = false;
 
   async build(ctx: SceneContext): Promise<void> {
@@ -75,6 +76,11 @@ export class InfrastructureScene extends Scene {
 
     // Maintenance drones drifting in the shaft.
     await this.spawnDrones(ctx);
+
+    // A travelling worklight that descends with the camera so the machinery it
+    // passes reads as the city's illuminated organs, not silhouettes in a void.
+    this.travelLight = new THREE.PointLight(0xcfe0e6, 60, 22, 1.6);
+    this.three.add(this.travelLight);
   }
 
   private async populateWalls(ctx: SceneContext) {
@@ -89,7 +95,7 @@ export class InfrastructureScene extends Scene {
     for (let i = 0; i < 34; i++) {
       const ang = (i / 34) * Math.PI * 2 * 3 + (i % 2) * 0.4; // spiral down
       const y = 3 - i * 3.4;
-      const radius = 5.0 + (i % 3) * 0.7;
+      const radius = 4.1 + (i % 3) * 0.55; // close enough to read as passing organs
       const proto = protos[i % protos.length];
       const mod = proto ? proto.clone() : machinedModule(1.6, 3.0, 0.9);
       mod.position.set(Math.cos(ang) * radius, y, Math.sin(ang) * radius);
@@ -139,6 +145,9 @@ export class InfrastructureScene extends Scene {
     const camY = remap(p, 0, 1, 4, -150, smoothstep);
     const camZ = remap(p, 0, 1, 7, 3.2);
     ctx.camera.setTarget([0, camY, camZ], [0, camY - 4, 0]);
+
+    // Worklight rides just ahead of and below the camera, raking the walls.
+    if (this.travelLight) this.travelLight.position.set(2.5, camY - 1.5, camZ - 1.5);
 
     // Shot 4 (>0.6): infrastructure reveal — widen and slow.
     if (p > 0.6) ctx.camera.setLens(lerp(22, 28, smoothstep(remap(p, 0.6, 1, 0, 1))));

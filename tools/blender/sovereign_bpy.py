@@ -348,6 +348,10 @@ def join_all(objs, name):
     # Deselect everything first so we never sweep unrelated objects into the join.
     bpy.ops.object.select_all(action="DESELECT")
     objs = [o for o in objs if o and o.name in bpy.data.objects]
+    # Bake each part's modifiers BEFORE joining. Otherwise the first part's live
+    # Bevel/Subsurf re-applies to every part joined into it (silent tri blow-up).
+    for o in objs:
+        apply_modifiers(o)
     for o in objs:
         o.select_set(True)
     bpy.context.view_layer.objects.active = objs[0]

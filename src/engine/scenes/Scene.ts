@@ -51,14 +51,20 @@ export abstract class Scene {
   exit(_ctx: SceneContext): void {}
 
   dispose() {
-    this.three.traverse((o) => {
-      const m = o as THREE.Mesh;
-      if (m.isMesh) {
-        m.geometry?.dispose();
-        const mat = m.material;
-        if (Array.isArray(mat)) mat.forEach((x) => x.dispose());
-        else mat?.dispose();
+    const freeMat = (mat: THREE.Material) => {
+      // Dispose any textures the material holds (canvas glow sprites leak otherwise).
+      for (const v of Object.values(mat) as unknown[]) {
+        if (v && (v as THREE.Texture).isTexture) (v as THREE.Texture).dispose();
       }
+      mat.dispose();
+    };
+    this.three.traverse((o) => {
+      // Covers Mesh, Points, Sprite, Line — anything with geometry/material.
+      const g = (o as THREE.Mesh).geometry as THREE.BufferGeometry | undefined;
+      const mat = (o as THREE.Mesh).material as THREE.Material | THREE.Material[] | undefined;
+      g?.dispose?.();
+      if (Array.isArray(mat)) mat.forEach(freeMat);
+      else if (mat) freeMat(mat);
     });
     this.three.clear();
   }

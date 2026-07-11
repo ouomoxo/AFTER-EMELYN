@@ -35,6 +35,8 @@ export class AugmentationScene extends Scene {
   private module?: THREE.Object3D;
   private parts: Record<string, THREE.Object3D> = {};
   private basePos: Record<string, THREE.Vector3> = {};
+  private neuralMat?: THREE.MeshStandardMaterial;
+  private signals: THREE.PointLight[] = [];
   private yaw = 0;
   private pitch = 0;
   private explode = 0;
@@ -68,6 +70,22 @@ export class AugmentationScene extends Scene {
           this.basePos[name] = o.position.clone();
         }
       }
+      // Grab the neural material so we can drive a living signal pulse.
+      const neural = a.parts['Neural_Conductor'] as THREE.Mesh;
+      if (neural?.isMesh) this.neuralMat = neural.material as THREE.MeshStandardMaterial;
+
+      // Two cyan signals that travel up the spine — the nervous system alive.
+      for (let i = 0; i < 2; i++) {
+        const sig = new THREE.PointLight(0x4fd4d0, 2.2, 1.4, 2);
+        this.three.add(sig);
+        this.signals.push(sig);
+      }
+
+      // A cool rim light so the ceramic shell separates from the void.
+      const rim = new THREE.SpotLight(0xbfe9ea, 26, 12, Math.PI / 5, 0.7, 1.2);
+      rim.position.set(-2.5, 2.4, -3);
+      rim.target.position.set(0, 0.9, 0);
+      this.three.add(rim, rim.target);
     } catch {
       // Fallback: a stand-in stack so the scene still stands up.
       const stand = new THREE.Mesh(
@@ -87,18 +105,31 @@ export class AugmentationScene extends Scene {
     setState({ interaction: 'engaged', systemLine: 'SUBJECT FRAME LOADED — REVISION PREVIEW' });
   }
 
-  update(ctx: SceneContext, dt: number, _time: number): void {
+  update(ctx: SceneContext, dt: number, time: number): void {
     const p = ctx.timeline.progress;
 
     // Constrained orbit: pointer sets a TARGET yaw/pitch within ±14° / ±7°.
+    // A very slow drift toward the module (3-beat: hold → creep → hold) keeps the
+    // held shot alive without turning it into a game camera.
     const targetYaw = ctx.pointer.x * 0.24;
     const targetPitch = ctx.pointer.y * 0.12;
     this.yaw = damp(this.yaw, targetYaw, 3, dt);
     this.pitch = damp(this.pitch, targetPitch, 3, dt);
-    const cx = Math.sin(this.yaw) * this.radius;
-    const cz = Math.cos(this.yaw) * this.radius;
+    const creep = this.radius - smoothstep(clamp(ctx.timeline.localTime / 10)) * 0.5;
+    const cx = Math.sin(this.yaw) * creep;
+    const cz = Math.cos(this.yaw) * creep;
     const cy = 0.95 + this.pitch * 1.4;
     ctx.camera.setTarget([cx, cy, cz], [this.center.x, this.center.y, this.center.z]);
+
+    // Neural signals travel up the spine; the conductor breathes with them.
+    this.signals.forEach((sig, i) => {
+      const t = (time * 0.5 + i * 0.5) % 1;
+      sig.position.set(0, 0.2 + t * 1.4, 0.06);
+      sig.intensity = Math.sin(t * Math.PI) * 3.0;
+    });
+    if (this.neuralMat) {
+      this.neuralMat.emissiveIntensity = 1.0 + Math.sin(time * 3.5) * 0.5 + this.explode * 0.8;
+    }
 
     // Scrub separates the layers in sequence (shell → muscle → neural → memory).
     this.explode = damp(this.explode, smoothstep(p), 2.4, dt);

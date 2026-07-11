@@ -189,6 +189,25 @@ for sy in (1, -1):
         S.assign(r, m["titanium"]); S.bevel(r, 0.003, 2)
         S.apply_modifiers(r); body_parts.append(r)
 
+# Engaged fluted colonnettes at the coffin's four vertical corners — a classical
+# corner treatment (like a tomb's corner columns). Real, subsurf-smoothed stone,
+# baked so it survives the join: it enriches the plain corners and carries mass.
+COLN_H = BODY[2] - 0.04
+for sx in (1, -1):
+    for sy in (1, -1):
+        cn = fluted_column("Body_Colonnette", 0.075, COLN_H, 14, 8, 8, 0.010,
+                           (sx * (BODY[0] / 2 - 0.015), sy * (BODY[1] / 2 - 0.015),
+                            BODY_Z), col)
+        S.assign(cn, m["obsidian"]); S.shade_smooth(cn)
+        S.subsurf(cn, 1, 1); S.apply_modifiers(cn)
+        body_parts.append(cn)
+        # A thin oxidized-brass ring astragal near the top of each colonnette.
+        ring = S.tube("Body_ColRing", 0.088, 0.072, 0.03, 32,
+                      (sx * (BODY[0] / 2 - 0.015), sy * (BODY[1] / 2 - 0.015),
+                       BODY_Z + COLN_H / 2 - 0.06), col)
+        S.assign(ring, m["brass"]); S.shade_smooth(ring)
+        S.apply_modifiers(ring); body_parts.append(ring)
+
 body = S.join_all(body_parts, "Sarcophagus")
 
 # ---------------------------------------------------------------------------
@@ -324,7 +343,7 @@ for sx in (1, -1):
         S.apply_modifiers(base); frame_parts.append(base)
         # Fluted shaft, smoothed with a subsurf for buttery machined metal, then
         # baked so the count survives the join intact (real, visible density).
-        shaft = fluted_column("Frame_Column", COL_R, SHAFT_H, 20, 9, 9, 0.011,
+        shaft = fluted_column("Frame_Column", COL_R, SHAFT_H, 22, 10, 12, 0.010,
                               (cx, cy, SHAFT_Z0 + SHAFT_H / 2), col)
         S.assign(shaft, m["titanium"]); S.shade_smooth(shaft)
         S.subsurf(shaft, 1, 1); S.apply_modifiers(shaft)

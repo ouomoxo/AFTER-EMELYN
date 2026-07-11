@@ -139,12 +139,13 @@ export function humanoidCloud(count: number, color = PALETTE.cyan): THREE.Points
   g.setAttribute('aSeed', new THREE.BufferAttribute(seed, 1));
   const mat = new THREE.PointsMaterial({
     color,
-    size: 0.014,
-    map: makeGlowSprite(32, '#' + new THREE.Color(color).getHexString()),
+    size: 0.05, // must read as a luminous body at an 85mm portrait distance
+    map: makeGlowSprite(48, '#' + new THREE.Color(color).getHexString()),
     transparent: true,
-    opacity: 0.9,
+    opacity: 0.95,
     depthWrite: false,
     blending: THREE.AdditiveBlending,
+    sizeAttenuation: true,
   });
   return new THREE.Points(g, mat);
 }

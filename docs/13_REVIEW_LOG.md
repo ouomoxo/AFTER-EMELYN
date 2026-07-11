@@ -17,6 +17,48 @@ Entry format:
 
 ---
 
+## 2026-07-11 — join_all bevel bug fixed in the authoring library
+**Mode:** BLENDER
+**Affects:** docs 06, tools/blender/sovereign_bpy.py
+**Status:** RESOLVED
+Asset authoring surfaced a real defect: `join_all` kept the *first* part's live
+Bevel/Subsurf modifier, which then re-applied to every part joined into it — a
+silent triangle blow-up (a vault plinth ballooned to 112K on invisible dentil
+bevels). `join_all` now bakes each part's modifiers via `apply_modifiers` before
+the join, so geometry is raw at merge time. Existing hero assets were authored
+with per-asset workarounds; future rebuilds get this for free.
+
+---
+
+## 2026-07-11 — Web runtime integrated; first end-to-end Critic pass
+**Mode:** IMPL + CRITIC
+**Affects:** P1–P9, docs 08 / 12
+**Status:** RESOLVED
+The full engine + six movements + diegetic interface + synthesized audio were
+implemented and driven end-to-end in headless Chromium (SwiftShader). Verified
+against the acceptance criteria:
+- **Press-and-hold authentication** advances the film. First cut measured the
+  hold with capped `dt`, which stalled on low-fps devices (a real bug, caught by
+  the capture harness). Re-based on the **wall clock** — always ~2s regardless of
+  frame rate. The Mirror replica assembly was hardened the same way.
+- **Exposure/bloom grade** was blowing out: ceramic and the data shaft bloomed to
+  white. Fixed by raising the bloom threshold to 0.92 (only true emissives bloom),
+  dropping exposure to 0.82, and calming per-scene emissive/lighting. Cyan is back
+  to a ~7% accent, not a wash.
+- **Chromatic aberration** was throwing rainbow rings frame-wide; re-authored to a
+  whisper confined to the extreme edge.
+- **Augmentation** hero reads: two ceramic shell halves split, the cyan neural
+  spine is revealed, and the anomaly (VOLUNTARY 41% / OVERRIDE 59% / CONTROL
+  SUBSTRATE) lands. Added living neural signal-flow lights + a ceramic rim light.
+- **Scene disposal** leaked sprite/points materials + canvas textures (suspected
+  cause of a SwiftShader crash after repeated scene swaps); disposal now frees all
+  geometry, materials, and their textures.
+- Known headless-only limitation: screenshots stall the RAF loop, so the 2.4s
+  door-open beat can't be frame-captured (wall-clock skips it). The transition
+  mechanic itself is confirmed. Real browsers play it smoothly.
+
+---
+
 ## 2026-07-11 — Documentation contract set established
 **Mode:** DIRECTOR + TD
 **Affects:** all docs 00–13, CLAUDE.md

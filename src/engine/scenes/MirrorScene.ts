@@ -9,7 +9,7 @@ import * as THREE from 'three';
 import { Scene, type SceneContext } from './Scene';
 import type { SceneId } from '../../narrative/acts';
 import { PALETTE } from '../../util/palette';
-import { clamp, damp, lerp } from '../../util/math';
+import { clamp, lerp, smoothstep } from '../../util/math';
 import { humanoidCloud } from './sceneKit';
 import { getState, setState } from '../../state/store';
 
@@ -77,13 +77,13 @@ export class MirrorScene extends Scene {
     }
   }
 
-  update(ctx: SceneContext, dt: number, time: number): void {
-    // The replica assembles from the recorded behavior over ~6 real seconds
-    // (wall-clock, so it is frame-rate independent).
+  update(_ctx: SceneContext, dt: number, time: number): void {
+    // The replica assembles from the recorded behavior over ~6 real seconds.
+    // Driven directly off the wall clock (not a dt-damp) so the figure forms on
+    // schedule at any frame rate.
     if (!this.enterTime) this.enterTime = performance.now();
     const elapsed = (performance.now() - this.enterTime) / 1000;
-    const target = this.resolved ? 1 : clamp(elapsed / 6);
-    this.assemble = damp(this.assemble, target, 1.4, dt);
+    this.assemble = this.resolved ? 1 : smoothstep(clamp(elapsed / 6));
 
     const pos = this.cloud.geometry.getAttribute('position') as THREE.BufferAttribute;
     const arr = pos.array as Float32Array;
