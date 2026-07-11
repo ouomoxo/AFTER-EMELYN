@@ -5,11 +5,9 @@
  * and shared by every scene. No HDRI download — keeps the bootstrap lean.
  */
 import * as THREE from 'three';
+import type { WebGPURenderer } from 'three/webgpu';
 
-export function buildEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
-  const pmrem = new THREE.PMREMGenerator(renderer);
-  pmrem.compileEquirectangularShader();
-
+export function buildEnvironment(renderer: WebGPURenderer): THREE.Texture | null {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x040406);
 
@@ -30,8 +28,18 @@ export function buildEnvironment(renderer: THREE.WebGLRenderer): THREE.Texture {
   panel(0x123033, 1.0, 10, 3, [-4, -3, 8]);   // faint cyan data bounce
   panel(0x0a0c10, 1.0, 30, 30, [0, -12, 0]);  // floor
 
-  const env = pmrem.fromScene(scene, 0.02).texture;
-  pmrem.dispose();
+  let env: THREE.Texture | null = null;
+  try {
+    // At runtime `three` is aliased to the WebGPU build, so PMREMGenerator here
+    // accepts the WebGPURenderer; the cast only satisfies the classic d.ts.
+    const pmrem = new THREE.PMREMGenerator(renderer as unknown as THREE.WebGLRenderer);
+    env = pmrem.fromScene(scene, 0.02).texture;
+    pmrem.dispose();
+  } catch (e) {
+    // If PMREM is unavailable on this backend, scenes still render on their own
+    // lights — just with less environment reflection.
+    console.warn('[SOVEREIGN] PMREM environment unavailable, continuing without IBL', e);
+  }
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
     if (m.isMesh) {

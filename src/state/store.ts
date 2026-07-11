@@ -37,6 +37,8 @@ export interface SovereignState {
   transition: TransitionState;
   interaction: InteractionState;
   tier: Tier;
+  /** Which render backend actually resolved at boot. */
+  backend: 'webgpu' | 'webgl';
   reducedMotion: boolean;
   muted: boolean;
   audioReady: boolean;
@@ -69,6 +71,7 @@ export const store = createStore<SovereignState>(() => ({
   transition: 'idle',
   interaction: 'observing',
   tier: 'B',
+  backend: 'webgl',
   reducedMotion: false,
   muted: false,
   audioReady: false,

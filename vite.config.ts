@@ -10,6 +10,13 @@ import { defineConfig } from 'vite';
 // under the subpath regardless of the current (rewritten) URL.
 export default defineConfig(({ command }) => ({
   base: command === 'build' ? '/AFTER-EMELYN/' : '/',
+  resolve: {
+    // Route bare `three` (incl. inside examples/jsm loaders) to the WebGPU build,
+    // so the whole app shares ONE THREE copy. Without this, GLTFLoader would mint
+    // core-`three` objects the WebGPURenderer can't recognize. `three/tsl` and
+    // `three/examples/*` still resolve normally (regex only matches bare `three`).
+    alias: [{ find: /^three$/, replacement: 'three/webgpu' }],
+  },
   server: {
     host: true,
     port: 5173,

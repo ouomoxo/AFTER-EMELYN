@@ -6,6 +6,7 @@
  * inside a black/fog beat so asset swaps are never visible.
  */
 import * as THREE from 'three';
+import { WebGPURenderer } from 'three/webgpu';
 import { CameraDirector } from './CameraDirector';
 import { CinematicTimeline } from './CinematicTimeline';
 import { PerformanceGovernor } from './PerformanceGovernor';
@@ -21,14 +22,14 @@ import { clamp, damp } from '../../util/math';
 export type SceneFactory = () => Scene;
 
 export class Engine {
-  renderer: THREE.WebGLRenderer;
+  renderer: WebGPURenderer;
   camera: CameraDirector;
   timeline = new CinematicTimeline();
   governor: PerformanceGovernor;
   loader = new AssetLoader();
   audio = new AudioDirector();
   post!: Post;
-  env!: THREE.Texture;
+  env: THREE.Texture | null = null;
 
   private factories = new Map<SceneId, SceneFactory>();
   private active?: Scene;
@@ -47,12 +48,11 @@ export class Engine {
     const hasWebGPU = 'gpu' in navigator; // intent flag; runtime uses WebGL2 path
     this.governor = new PerformanceGovernor(reduced, hasWebGPU);
 
-    const gl = document.createElement('canvas');
-    this.renderer = new THREE.WebGLRenderer({
-      canvas: gl,
+    // WebGPU when the device supports it, automatic WebGL2 fallback otherwise —
+    // one renderer satisfies "WebGPU 우선, WebGL2 폴백". Init is async (see start()).
+    this.renderer = new WebGPURenderer({
       antialias: this.governor.profile.tier !== 'C',
       powerPreference: 'high-performance',
-      stencil: false,
     });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, this.governor.profile.pixelRatioCap));
     this.renderer.toneMapping = THREE.ACESFilmicToneMapping;
@@ -64,7 +64,6 @@ export class Engine {
 
     this.updateSize();
     this.camera = new CameraDirector(this.size.x / this.size.y);
-    this.env = buildEnvironment(this.renderer);
 
     setState({
       tier: this.governor.profile.tier,
@@ -114,6 +113,12 @@ export class Engine {
 
   /** Boot the first movement and start the loop. */
   async start(first: SceneId = 'handshake') {
+    // WebGPURenderer must initialize its device before any render / PMREM use.
+    await this.renderer.init();
+    this.env = buildEnvironment(this.renderer);
+    // Record which backend actually resolved (webgpu vs webgl fallback).
+    const backend = (this.renderer.backend as { isWebGPUBackend?: boolean })?.isWebGPUBackend ? 'webgpu' : 'webgl';
+    setState({ backend });
     await this.go(first, true);
     this.post = new Post(this.renderer, this.active!.three, this.camera.cam, this.size, this.governor.profile);
     this.loop();
@@ -211,7 +216,7 @@ export class Engine {
   private fadeTo(target: number, dur: number): Promise<void> {
     return new Promise((resolve) => {
       const start = performance.now();
-      const from = this.post ? this.post.grade.uniforms.uFade.value : 0;
+      const from = this.post ? this.post.fade : 0;
       const tick = () => {
         const t = clamp((performance.now() - start) / (dur * 1000));
         if (this.post) this.post.fade = from + (target - from) * t;
@@ -232,8 +237,7 @@ export class Engine {
     this.active?.onPress?.(this.ctx(), down);
   }
 
-  private loop = () => {
-    requestAnimationFrame(this.loop);
+  private loop = async () => {
     const dt = Math.min(this.clock.getDelta(), 0.05);
     this.time += dt;
     const frameStart = performance.now();
@@ -256,8 +260,10 @@ export class Engine {
 
     setState({ progress: this.timeline.progress, shot: this.timeline.shot });
 
-    if (this.post) this.post.render(dt, this.time);
-    else this.renderer.render(this.active!.three, this.camera.cam);
+    // WebGPU rendering is async; await it so frames never overlap, then schedule
+    // the next one.
+    if (this.post) await this.post.render(dt, this.time);
+    else await this.renderer.renderAsync(this.active!.three, this.camera.cam);
 
     const frameMs = performance.now() - frameStart;
     this.governor.sample(frameMs);
@@ -267,5 +273,6 @@ export class Engine {
     }
 
     void this.pressed;
+    requestAnimationFrame(this.loop);
   };
 }
