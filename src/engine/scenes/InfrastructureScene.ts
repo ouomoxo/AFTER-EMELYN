@@ -63,6 +63,24 @@ export class InfrastructureScene extends Scene {
       this.three.add(ring);
     }
 
+    // Vertical conduits close to the descent — the city's nerves and cabling.
+    // These fill the frame and streak past for parallax, so the shaft is never
+    // alone in a void. Some carry cyan data light; most are dark structure.
+    const conduitH = 240;
+    for (let i = 0; i < 22; i++) {
+      const ang = (i / 22) * Math.PI * 2;
+      const r = 2.7 + (i % 4) * 0.4;
+      const isData = i % 4 === 0;
+      const rad = isData ? 0.03 : 0.05 + (i % 3) * 0.02;
+      const geo = new THREE.CylinderGeometry(rad, rad, conduitH, 6);
+      const mat = isData
+        ? new THREE.MeshStandardMaterial({ color: PALETTE.cyan, emissive: PALETTE.cyan, emissiveIntensity: 1.1, roughness: 0.4 })
+        : new THREE.MeshStandardMaterial({ color: PALETTE.graphite, metalness: 1, roughness: 0.5 });
+      const c = new THREE.Mesh(geo, mat);
+      c.position.set(Math.cos(ang) * r, -conduitH / 2 + 8, Math.sin(ang) * r);
+      this.three.add(c);
+    }
+
     // Server spines + cooling modules on the walls — try real assets, else procedural.
     await this.populateWalls(ctx);
 
@@ -146,8 +164,9 @@ export class InfrastructureScene extends Scene {
     const camZ = remap(p, 0, 1, 7, 3.2);
     ctx.camera.setTarget([0, camY, camZ], [0, camY - 4, 0]);
 
-    // Worklight rides just ahead of and below the camera, raking the walls.
-    if (this.travelLight) this.travelLight.position.set(2.5, camY - 1.5, camZ - 1.5);
+    // Worklight rides off-axis and below the camera, raking the conduits and
+    // walls without washing out the central shaft.
+    if (this.travelLight) this.travelLight.position.set(3.5, camY - 2.5, camZ - 0.5);
 
     // Shot 4 (>0.6): infrastructure reveal — widen and slow.
     if (p > 0.6) ctx.camera.setLens(lerp(22, 28, smoothstep(remap(p, 0.6, 1, 0, 1))));
@@ -155,7 +174,7 @@ export class InfrastructureScene extends Scene {
     // The world stays alive regardless of scroll.
     if (this.shaftCore) {
       const m = this.shaftCore.material as THREE.MeshStandardMaterial;
-      m.emissiveIntensity = 0.95 + Math.sin(time * 3) * 0.25;
+      m.emissiveIntensity = 0.55 + Math.sin(time * 3) * 0.15; // no blow-out
     }
     this.stream.update(dt, new THREE.Vector3(0, 1, 0), 6);
     for (const d of this.drones) {
