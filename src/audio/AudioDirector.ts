@@ -237,3 +237,37 @@ export class AudioDirector {
     if (this.master) this.master.gain.setTargetAtTime(m ? 0 : 0.9, this.t(), 0.1);
   }
 }
+
+/**
+ * Proof-of-synthesis: renders a representative sub-bass + click through an
+ * OfflineAudioContext (no audio device needed) and returns the peak amplitude.
+ * Lets a headless run VERIFY the Web Audio synthesis actually produces signal —
+ * the one thing a muted headless browser otherwise can't confirm. > 0 = audible.
+ */
+export async function renderAudioProof(): Promise<number> {
+  const Off = window.OfflineAudioContext || (window as unknown as { webkitOfflineAudioContext: typeof OfflineAudioContext }).webkitOfflineAudioContext;
+  const sr = 44100;
+  const ctx = new Off(1, sr * 1.5, sr);
+  const master = ctx.createGain();
+  master.gain.value = 0.9;
+  master.connect(ctx.destination);
+
+  // sub-bass sweep (as AudioDirector.sub does)
+  const o = ctx.createOscillator();
+  o.type = 'sine';
+  o.frequency.setValueAtTime(54, 0);
+  o.frequency.exponentialRampToValueAtTime(34, 0.5);
+  const g = ctx.createGain();
+  g.gain.setValueAtTime(0.0001, 0);
+  g.gain.exponentialRampToValueAtTime(0.7, 0.04);
+  g.gain.exponentialRampToValueAtTime(0.0001, 1.2);
+  o.connect(g).connect(master);
+  o.start(0);
+  o.stop(1.3);
+
+  const buffer = await ctx.startRendering();
+  const data = buffer.getChannelData(0);
+  let peak = 0;
+  for (let i = 0; i < data.length; i++) peak = Math.max(peak, Math.abs(data[i]));
+  return peak;
+}

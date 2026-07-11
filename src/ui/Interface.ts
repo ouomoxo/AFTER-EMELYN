@@ -79,6 +79,10 @@ export class Interface {
     this.el.renderClass = this.h('div', 'render-class', 'RENDER CLASS: —');
     controls.append(this.el.renderClass, this.el.mute);
     this.root.appendChild(controls);
+
+    // Debug perf HUD (toggle with 'D' or ?debug) — for real-device profiling.
+    this.el.debug = this.h('div', 'debug-hud');
+    this.root.appendChild(this.el.debug);
   }
 
   private choose(which: 'accept' | 'terminate') {
@@ -123,5 +127,14 @@ export class Interface {
     const showChoices = s.scene === 'mirror' && s.interaction === 'authenticating' && !s.choice;
     this.el.choices.classList.toggle('show', showChoices);
     if (showChoices) this.el.track.setAttribute('data-tag', 'DECIDING');
+
+    // Debug perf HUD
+    this.el.debug.classList.toggle('show', s.debug);
+    if (s.debug) {
+      this.el.debug.innerHTML =
+        `BACKEND ${s.backend.toUpperCase()}  ·  TIER ${s.tier}${s.mobile ? ' · MOBILE' : ''}<br>` +
+        `FPS ${s.perf.fps}  ·  DRAW ${s.perf.drawCalls}  ·  TRIS ${(s.perf.triangles / 1000).toFixed(0)}K<br>` +
+        `SCENE ${s.scene}  ·  ${(s.progress * 100).toFixed(0)}%  ·  replica ${(s.behavior.replica * 100).toFixed(0)}%`;
+    }
   }
 }

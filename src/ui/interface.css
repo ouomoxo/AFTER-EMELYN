@@ -146,6 +146,15 @@ body.pressing .cursor-track { border-color: var(--u-amber); width: 34px; height:
 :root[data-sovereign="debug"] .glyphs { color: var(--u-surgical); }
 :root[data-sovereign="debug"] .act-label b { color: var(--u-cyan); }
 
+/* ---- Debug perf HUD ---- */
+.debug-hud {
+  position: fixed; top: 44px; left: 24px; font-family: var(--u-mono);
+  font-size: 10px; letter-spacing: 0.12em; line-height: 1.7; color: var(--u-cyan);
+  opacity: 0; transition: opacity 0.2s; text-transform: uppercase;
+  border-left: 1px solid rgba(79,212,208,0.5); padding-left: 8px; pointer-events: none;
+}
+.debug-hud.show { opacity: 0.85; }
+
 /* ---- Reduced motion ---- */
 @media (prefers-reduced-motion: reduce) {
   .cursor-track { transition: none; }

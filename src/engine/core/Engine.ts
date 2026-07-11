@@ -41,6 +41,8 @@ export class Engine {
   private pressed = false;
   private transitioning = false;
   private time = 0;
+  private perfAccum = 0;
+  private perfFrames = 0;
   private onSceneChange?: (id: SceneId) => void;
 
   constructor(canvas: HTMLElement) {
@@ -273,6 +275,21 @@ export class Engine {
     if (this.governor.profile.tier !== getState().tier) {
       setState({ tier: this.governor.profile.tier });
       this.post?.applyProfile(this.governor.profile);
+    }
+
+    // Publish perf stats a few times a second for the debug HUD / profiling.
+    this.perfAccum += frameMs;
+    if (++this.perfFrames >= 12) {
+      const info = this.renderer.info;
+      setState({
+        perf: {
+          fps: Math.round(1000 / (this.perfAccum / this.perfFrames)),
+          drawCalls: info.render.drawCalls,
+          triangles: info.render.triangles,
+        },
+      });
+      this.perfAccum = 0;
+      this.perfFrames = 0;
     }
 
     void this.pressed;

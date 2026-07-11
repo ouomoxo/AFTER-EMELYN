@@ -6,7 +6,7 @@
  * whole time. Session-only — nothing leaves the browser.
  */
 import type { Engine } from '../engine/core/Engine';
-import { getState, patchBehavior } from '../state/store';
+import { getState, patchBehavior, setState } from '../state/store';
 import { clamp } from '../util/math';
 
 export class InputInterpreter {
@@ -149,6 +149,8 @@ export class InputInterpreter {
     } else if (e.key >= '1' && e.key <= '6') {
       // debug/menu jump handled by narrative director via custom event
       window.dispatchEvent(new CustomEvent('sovereign:jump', { detail: Number(e.key) - 1 }));
+    } else if (e.key === 'd' || e.key === 'D') {
+      setState({ debug: !getState().debug });
     }
   };
 

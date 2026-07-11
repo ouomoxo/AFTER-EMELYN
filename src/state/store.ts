@@ -52,6 +52,9 @@ export interface SovereignState {
   systemLine: string;
   /** A queue of transient debug/system glyphs (used by prediction + vault). */
   glyphs: string[];
+  /** Debug perf HUD toggle + live stats (for real-device profiling). */
+  debug: boolean;
+  perf: { fps: number; drawCalls: number; triangles: number };
 }
 
 const emptyBehavior: BehavioralSummary = {
@@ -83,6 +86,8 @@ export const store = createStore<SovereignState>(() => ({
   behavior: { ...emptyBehavior },
   systemLine: '',
   glyphs: [],
+  debug: false,
+  perf: { fps: 0, drawCalls: 0, triangles: 0 },
 }));
 
 // Convenience helpers (avoid importing setState everywhere).

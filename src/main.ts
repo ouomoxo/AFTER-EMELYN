@@ -14,6 +14,7 @@ import { AugmentationScene } from './engine/scenes/AugmentationScene';
 import { PredictionScene } from './engine/scenes/PredictionScene';
 import { BlackVaultScene } from './engine/scenes/BlackVaultScene';
 import { MirrorScene } from './engine/scenes/MirrorScene';
+import { renderAudioProof } from './audio/AudioDirector';
 import { setState, getState } from './state/store';
 
 async function boot() {
@@ -51,10 +52,13 @@ async function boot() {
   window.addEventListener('pointerdown', () => document.body.classList.add('pressing'));
   window.addEventListener('pointerup', () => document.body.classList.remove('pressing'));
 
+  if (new URLSearchParams(location.search).has('debug')) setState({ debug: true });
+
   // Introspection hook for the capture harness / debugging (not user-facing).
   (window as unknown as { __sovereign: unknown }).__sovereign = {
     getState,
     jump: (id: string) => engine.jump(id as never),
+    audioProof: renderAudioProof,
     engine,
   };
 
