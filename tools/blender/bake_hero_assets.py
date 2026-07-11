@@ -125,22 +125,10 @@ CONFIGS = [
             "Memory_Coprocessor": Vector((0, 0, 0.42)),
         },
     ),
-    # Auth-door iris: STATIC assembly -> mutual occlusion (nested rings/bolts cast
-    # contact shadows into each other, which is exactly the depth we want). 1024²
-    # keeps the baked variant lean; the iris parts dominate the atlas so the focal
-    # point still resolves soft, clean AO.
-    dict(
-        name="auth_door", res=1024, samples=96,
-        ao_distance=0.28, ao_strength=0.85, isolate=False,
-        # Bake AO only on the machined ring joinery (the focal iris). Skip the big
-        # graphite leaves (dark base -> AO invisible, yet they'd eat most of the
-        # atlas), the flat aperture blades (artifact-prone, not joinery), and the
-        # negligible bolts / emissive warn ticks. This hands the whole atlas to the
-        # iris so its contact shadows resolve crisp and clean.
-        skip={"Leaf_L", "Leaf_R", "Iris_Blades", "BoltRing", "Warn_0", "Warn_1"},
-        render_kw=dict(cam_loc=(0.6, -3.4, 4.6), target=(0, 0, 0.2),
-                       lens=55, samples=80, res=(1000, 660)),
-    ),
+    # NOTE: the auth-door pressure bulkhead is deliberately NOT baked. Its detail
+    # is all real geometry (bolts, armor bands, the machined eye), so it reads on
+    # every tier from the lean neutral-PBR GLB, and the AO bake blew its base
+    # color to white under glTF export. The runtime loads auth_door.glb directly.
 ]
 
 

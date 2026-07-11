@@ -50,7 +50,9 @@ export class AugmentationScene extends Scene {
   async build(ctx: SceneContext): Promise<void> {
     this.three.fog = new THREE.FogExp2(0x05070a, 0.05);
     this.three.background = new THREE.Color(0x04050a);
-    coldRig(this.three, [0, 0.9, 0], 34);
+    // A brighter surgical key so the machined titanium + ceramic craft reads —
+    // the rebuilt hero has real joinery worth lighting, not a flat blockout.
+    coldRig(this.three, [0, 0.85, 0], 95);
 
     // A cold operating-theatre floor reflection plane.
     const floor = new THREE.Mesh(
@@ -117,9 +119,9 @@ export class AugmentationScene extends Scene {
   enter(ctx: SceneContext): void {
     // Mobile cut: the module is a tall vertical spine — it OWNS a portrait frame,
     // so come closer (a more intimate, detail-forward read) than the wide cut.
-    this.radius = ctx.portrait ? 4.0 : 4.6;
-    const lens = ctx.portrait ? 52 : 62;
-    ctx.camera.hardSet([0, 0.95, this.radius], [0, 0.85, 0], lens);
+    this.radius = ctx.portrait ? 3.5 : 3.9;
+    const lens = ctx.portrait ? 50 : 58;
+    ctx.camera.hardSet([0, 0.95, this.radius], [0, 0.82, 0], lens);
     ctx.camera.posLambda = 2.2;
     ctx.camera.lookLambda = 3.0;
     ctx.camera.setParallaxLimit(0.06, 0.05); // very restrained — this is a held shot
