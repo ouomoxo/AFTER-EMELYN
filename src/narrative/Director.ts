@@ -21,14 +21,20 @@ export class Director {
     }
     setState({ secondVisit: seen });
 
+    // Deployment base (e.g. "/AFTER-EMELYN/" on Pages, "/" in dev). Routes are
+    // authored as "/handshake" etc. and prefixed with the base at the address bar.
+    const base = import.meta.env.BASE_URL;
+    const stripBase = (p: string) =>
+      (p.startsWith(base) ? '/' + p.slice(base.length) : p).replace(/\/+/g, '/');
+
     // URL → starting movement (deep-link support; default prologue).
-    const path = window.location.pathname.replace(/\/$/, '') || '/handshake';
+    const path = stripBase(window.location.pathname).replace(/\/$/, '') || '/handshake';
     const start = (ACT_BY_ROUTE[path]?.id ?? 'handshake') as SceneId;
 
     // Keep the address bar honest as movements change, without reloads.
     this.engine.onScene((id) => {
       const def = ACTS.find((a) => a.id === id)!;
-      history.replaceState({ id }, '', def.route);
+      history.replaceState({ id }, '', base.replace(/\/$/, '') + def.route);
       document.title = `SOVEREIGN//77 — ${def.title}`;
     });
 

@@ -17,21 +17,27 @@ export class AssetLoader {
   private gltf: GLTFLoader;
   private cache = new Map<string, Promise<LoadedAsset>>();
 
+  /** Deployment base (e.g. "/AFTER-EMELYN/") so fetches survive URL rewrites. */
+  private base = import.meta.env.BASE_URL;
+
   constructor() {
     const draco = new DRACOLoader();
     // Decoder is vendored into /public/draco — never fetched from a CDN, so the
-    // film boots on restricted networks and offline.
-    draco.setDecoderPath('draco/');
+    // film boots on restricted networks and offline. Base-prefixed so it resolves
+    // under a Pages subpath too.
+    draco.setDecoderPath(`${this.base}draco/`);
     draco.setDecoderConfig({ type: 'wasm' });
     this.gltf = new GLTFLoader();
     this.gltf.setDRACOLoader(draco);
   }
 
   load(url: string): Promise<LoadedAsset> {
-    if (this.cache.has(url)) return this.cache.get(url)!;
+    // Resolve relative URLs against the deployment base, absolute/remote as-is.
+    const full = /^(https?:)?\/\//.test(url) || url.startsWith('/') ? url : `${this.base}${url}`;
+    if (this.cache.has(full)) return this.cache.get(full)!;
     const p = new Promise<LoadedAsset>((resolve, reject) => {
       this.gltf.load(
-        url,
+        full,
         (g) => {
           const parts: Record<string, THREE.Object3D> = {};
           g.scene.traverse((o) => {
@@ -50,7 +56,7 @@ export class AssetLoader {
         (err) => reject(err),
       );
     });
-    this.cache.set(url, p);
+    this.cache.set(full, p);
     return p;
   }
 

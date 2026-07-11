@@ -2,6 +2,9 @@
 
 **THE SYSTEM IS NOT WAITING FOR YOUR INPUT.**
 
+▶ **Live:** https://ouomoxo.github.io/AFTER-EMELYN/ — deployed from `main` via GitHub Actions.
+Best on desktop with sound on. Press and hold to authenticate.
+
 Not a website. A 3–5 minute **interactive short film** you don't watch so much as
 get processed by. You "access" SOVEREIGN — a transnational AI running a 2077 city
 — and slowly realize the reverse of what you assumed: you were never exploring
