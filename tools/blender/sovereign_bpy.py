@@ -473,6 +473,81 @@ def lookdev_render(path, cam_loc=(2.4, -3.0, 1.6), target=(0, 0, 0.4),
 # These are additive helpers — nothing above depends on them, and the existing
 # build_*.py scripts are unaffected.
 # ----------------------------------------------------------------------------
+def add_surface_detail(mat, *, metal=True, groove=0.10, micro=0.28, rough_var=0.10,
+                       groove_scale=40.0, micro_scale=180.0):
+    """Inject procedural micro-surface into a material's Principled BSDF so a bake
+    captures real relief + gloss variation: anisotropic machining grooves + fine
+    scratches (chained Bump nodes → Normal) and noise-driven roughness variation.
+    Emissive / transmissive materials (data glow, glass) are left pristine.
+
+    Object-space coordinates keep the detail 3D-consistent, so a UV bake writes a
+    stable normal/roughness atlas. Call BEFORE bake_pbr; it rewires Normal +
+    Roughness, which bake_pbr then replaces with the baked textures.
+    """
+    if not mat.use_nodes:
+        return None
+    nt = mat.node_tree
+    bsdf = nt.nodes.get("Principled BSDF") or next(
+        (n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+    if bsdf is None:
+        return None
+    if bsdf.inputs["Emission Strength"].default_value > 0.1:
+        return None
+    if "Transmission Weight" in bsdf.inputs and bsdf.inputs["Transmission Weight"].default_value > 0.1:
+        return None
+    base_r = bsdf.inputs["Roughness"].default_value
+
+    tc = nt.nodes.new("ShaderNodeTexCoord")
+    tc.location = (-1600, -300)
+
+    # anisotropic machining grooves: a wave stretched hard along one axis
+    amap = nt.nodes.new("ShaderNodeMapping")
+    amap.location = (-1400, -200)
+    amap.inputs["Scale"].default_value = (1.0, groove_scale, 1.0)
+    nt.links.new(tc.outputs["Object"], amap.inputs["Vector"])
+    wave = nt.nodes.new("ShaderNodeTexWave")
+    wave.location = (-1200, -200)
+    wave.inputs["Scale"].default_value = 26.0
+    wave.inputs["Distortion"].default_value = 1.5
+    if "Detail" in wave.inputs:
+        wave.inputs["Detail"].default_value = 2.0
+    nt.links.new(amap.outputs["Vector"], wave.inputs["Vector"])
+
+    # fine scratches / micro texture
+    noise = nt.nodes.new("ShaderNodeTexNoise")
+    noise.location = (-1200, -450)
+    noise.inputs["Scale"].default_value = micro_scale
+    noise.inputs["Detail"].default_value = 6.0
+    if "Roughness" in noise.inputs:
+        noise.inputs["Roughness"].default_value = 0.75
+    nt.links.new(tc.outputs["Object"], noise.inputs["Vector"])
+
+    # chained bumps: grooves then micro, into the BSDF Normal
+    bump_g = nt.nodes.new("ShaderNodeBump")
+    bump_g.location = (-800, -150)
+    bump_g.inputs["Strength"].default_value = groove
+    bump_g.inputs["Distance"].default_value = 0.0016
+    nt.links.new(wave.outputs["Fac"], bump_g.inputs["Height"])
+    bump_m = nt.nodes.new("ShaderNodeBump")
+    bump_m.location = (-600, -250)
+    bump_m.inputs["Strength"].default_value = micro
+    bump_m.inputs["Distance"].default_value = 0.0009
+    nt.links.new(noise.outputs["Fac"], bump_m.inputs["Height"])
+    nt.links.new(bump_g.outputs["Normal"], bump_m.inputs["Normal"])
+    nt.links.new(bump_m.outputs["Normal"], bsdf.inputs["Normal"])
+
+    # roughness variation: remap the micro noise around the base roughness
+    mr = nt.nodes.new("ShaderNodeMapRange")
+    mr.location = (-600, -500)
+    mr.inputs["From Min"].default_value = 0.0
+    mr.inputs["From Max"].default_value = 1.0
+    mr.inputs["To Min"].default_value = max(0.02, base_r - rough_var)
+    mr.inputs["To Max"].default_value = min(1.0, base_r + rough_var)
+    nt.links.new(noise.outputs["Fac"], mr.inputs["Value"])
+    nt.links.new(mr.outputs["Result"], bsdf.inputs["Roughness"])
+    return {"noise": noise, "wave": wave, "bump": bump_m, "rough": mr}
+
+
 def smart_uv(obj, angle=66, island_margin=0.02):
     """Angle-based Smart UV Project on a single object.
 
@@ -696,3 +771,165 @@ def apply_ao_to_material(mat, image, strength=0.85, gltf_occlusion=True):
         except Exception:
             pass
     return mat
+
+
+# ----------------------------------------------------------------------------
+# Full PBR bake — normal + roughness + AO, the realism jump beyond flat factors.
+#
+# Injects procedural micro-surface (add_surface_detail) into every non-emissive
+# material, unwraps + packs a shared atlas, then bakes THREE passes into three
+# shared images and rewires each material to use them:
+#   normal.png     -> tangent-space normalTexture   (machining relief + scratches)
+#   rough.png      -> Roughness input (metallicRoughnessTexture G)  (gloss variation)
+#   ao.png         -> occlusionTexture (via glTF Material Output group)
+# normalMap + roughnessMap are a first-class, reliable glTF path in three.js
+# (unlike AO-into-base-color), so this survives export cleanly.
+# ----------------------------------------------------------------------------
+def bake_pbr(objs, out_dir, name, res=2048, samples=48, ao_distance=0.1,
+             ao_samples=96, isolate_ao=True, skip=None):
+    """Bake normal + roughness + AO for `objs` into one shared atlas set and wire
+    the maps back for glTF export. `skip` = object names kept pristine (smooth
+    covers / emissives). Returns dict of the three bpy Images."""
+    import os as _os
+    skip = set(skip or [])
+    objs = [o for o in objs if o and getattr(o, "type", None) == "MESH" and o.name not in skip]
+    if not objs:
+        raise ValueError("bake_pbr: no mesh objects")
+
+    # 1. procedural micro-surface on every material we bake
+    matlist = _materials_of(objs)
+    for m in matlist:
+        add_surface_detail(m)
+
+    # 2. UVs + shared atlas
+    for o in objs:
+        if not o.data.uv_layers:
+            smart_uv(o)
+    _pack_atlas(objs)
+
+    # 3. three shared images (all Non-Color, 8-bit: a float normal ballooned the
+    #    GLB ~8x for no visible gain)
+    def _img(suffix, bg):
+        im = bpy.data.images.new(f"{name}_{suffix}", res, res, alpha=False, float_buffer=False)
+        im.colorspace_settings.name = "Non-Color"
+        im.generated_color = bg
+        return im
+    normal_img = _img("n", (0.5, 0.5, 1.0, 1.0))   # flat tangent normal
+    rough_img = _img("r", (0.5, 0.5, 0.5, 1.0))
+    ao_img = _img("ao", (1.0, 1.0, 1.0, 1.0))       # white = unoccluded
+
+    # 4. per-material target image nodes (one per pass)
+    targets = {}
+    for m in matlist:
+        nt = m.node_tree
+        nodes = {}
+        for key, im in (("n", normal_img), ("r", rough_img), ("ao", ao_img)):
+            node = nt.nodes.new("ShaderNodeTexImage")
+            node.image = im
+            node.location = (-1900, 300 - 260 * "nrao".index(key[0]) if False else -1000)
+            nodes[key] = node
+        targets[m] = nodes
+
+    # 5. Cycles CPU setup
+    scene = bpy.context.scene
+    scene.render.engine = "CYCLES"
+    try:
+        scene.cycles.device = "CPU"
+        scene.cycles.use_denoising = False
+    except Exception:
+        pass
+    if scene.world is None:
+        scene.world = bpy.data.worlds.new("BakeWorld")
+    scene.world.light_settings.distance = ao_distance
+    bake = scene.render.bake
+    bake.use_clear = False
+    bake.margin = 8
+    bake.use_selected_to_active = False
+
+    def _activate(key):
+        for m in matlist:
+            nt = m.node_tree
+            for n in nt.nodes:
+                n.select = False
+            node = targets[m][key]
+            node.select = True
+            nt.nodes.active = node
+
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    def _select(only=None):
+        bpy.ops.object.select_all(action="DESELECT")
+        for o in (only or objs):
+            o.select_set(True)
+        bpy.context.view_layer.objects.active = (only[0] if only else objs[0])
+
+    # 6. NORMAL pass (tangent space; captures the bump chain)
+    scene.cycles.samples = 1
+    _activate("n")
+    _select()
+    bpy.ops.object.bake(type="NORMAL", normal_space="TANGENT",
+                        normal_r="POS_X", normal_g="POS_Y", normal_b="POS_Z")
+
+    # 7. ROUGHNESS pass (captures the noise variation)
+    scene.cycles.samples = 1
+    _activate("r")
+    _select()
+    bpy.ops.object.bake(type="ROUGHNESS")
+
+    # 8. AO pass (self-occlusion, isolate so moving parts don't print onto covers)
+    scene.cycles.samples = ao_samples
+    _activate("ao")
+    if isolate_ao:
+        scene_meshes = [m for m in bpy.data.objects if m.type == "MESH"]
+        prev = {m.name: m.hide_render for m in scene_meshes}
+        for o in objs:
+            for m in scene_meshes:
+                m.hide_render = (m is not o)
+            _select([o])
+            bpy.ops.object.bake(type="AO")
+        for m in scene_meshes:
+            m.hide_render = prev.get(m.name, False)
+    else:
+        _select()
+        bpy.ops.object.bake(type="AO")
+
+    # 9. save + pack
+    _os.makedirs(out_dir, exist_ok=True)
+    for suffix, im in (("n", normal_img), ("r", rough_img), ("ao", ao_img)):
+        p = _os.path.join(out_dir, f"{name}_{suffix}.png")
+        im.filepath_raw = p
+        im.file_format = "PNG"
+        im.save()
+        try:
+            im.pack()
+        except Exception:
+            pass
+
+    # 10. rewire every material to the baked maps (bypasses the procedural detail)
+    occ_grp = _gltf_occlusion_group()
+    for m in matlist:
+        nt = m.node_tree
+        bsdf = nt.nodes.get("Principled BSDF") or next(
+            (n for n in nt.nodes if n.type == "BSDF_PRINCIPLED"), None)
+        if bsdf is None:
+            continue
+        nn, rn, an = targets[m]["n"], targets[m]["r"], targets[m]["ao"]
+        # normal map
+        nmap = nt.nodes.new("ShaderNodeNormalMap")
+        nmap.location = (-300, -200)
+        nmap.inputs["Strength"].default_value = 1.0
+        nt.links.new(nn.outputs["Color"], nmap.inputs["Color"])
+        nt.links.new(nmap.outputs["Normal"], bsdf.inputs["Normal"])
+        # roughness
+        nt.links.new(rn.outputs["Color"], bsdf.inputs["Roughness"])
+        # occlusion (dedicated glTF slot — never touches base color)
+        try:
+            gnode = nt.nodes.new("ShaderNodeGroup")
+            gnode.node_tree = occ_grp
+            gnode.location = (-300, -520)
+            nt.links.new(an.outputs["Color"], gnode.inputs["Occlusion"])
+        except Exception:
+            pass
+
+    print(f"[SOVEREIGN] baked PBR {name}: normal+rough+ao  ({res}²)")
+    return {"normal": normal_img, "rough": rough_img, "ao": ao_img}
