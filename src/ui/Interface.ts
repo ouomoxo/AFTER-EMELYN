@@ -36,7 +36,11 @@ export class Interface {
     this.el.track = this.h('div', 'cursor-track');
     this.el.track.setAttribute('data-tag', 'TRACKING');
     this.el.dot = this.h('div', 'cursor-dot');
-    this.root.append(this.el.track, this.el.dot);
+    // The system's PREDICTION of the subject — a ghost cursor projected ahead of
+    // the real one. It sharpens as the replica completes (the twist, made felt).
+    this.el.predict = this.h('div', 'cursor-predict');
+    this.el.predict.setAttribute('data-tag', 'PREDICTED');
+    this.root.append(this.el.track, this.el.predict, this.el.dot);
 
     this.el.act = this.h('div', 'act-label');
     this.el.line = this.h('div', 'system-line');
@@ -104,6 +108,13 @@ export class Interface {
     }
     if (!s.systemLine) this.el.line.classList.remove('show');
 
+    // Predictive ghost cursor — sharpens with the model's confidence, and
+    // "locks" once it reliably anticipates the subject (the twist, made felt).
+    const pc = s.behavior.prediction;
+    this.el.predict.style.opacity = String(Math.max(0, Math.min(1, pc * 1.25 - 0.12)));
+    this.el.predict.classList.toggle('locked', pc > 0.72);
+    this.el.predict.setAttribute('data-tag', pc > 0.72 ? 'ANTICIPATED' : 'PREDICTED');
+
     // Glyphs
     this.el.glyphs.innerHTML = s.glyphs
       .map((g) => `<div class="${/OVERRIDE|WARNING|CONFLICT|FALSE/.test(g) ? 'warn' : ''}">${g}</div>`)
@@ -134,7 +145,7 @@ export class Interface {
       this.el.debug.innerHTML =
         `BACKEND ${s.backend.toUpperCase()}  ·  TIER ${s.tier}${s.mobile ? ' · MOBILE' : ''}<br>` +
         `FPS ${s.perf.fps}  ·  DRAW ${s.perf.drawCalls}  ·  TRIS ${(s.perf.triangles / 1000).toFixed(0)}K<br>` +
-        `SCENE ${s.scene}  ·  ${(s.progress * 100).toFixed(0)}%  ·  replica ${(s.behavior.replica * 100).toFixed(0)}%`;
+        `SCENE ${s.scene}  ·  ${(s.progress * 100).toFixed(0)}%  ·  replica ${(s.behavior.replica * 100).toFixed(0)}%  ·  predict ${(s.behavior.prediction * 100).toFixed(0)}%`;
     }
   }
 }

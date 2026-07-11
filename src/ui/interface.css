@@ -17,6 +17,8 @@
   --u-sans: "Neue Haas", "Inter", "Helvetica Neue", system-ui, sans-serif;
   --cx: 50vw;
   --cy: 50vh;
+  --px: 50vw;
+  --py: 50vh;
 }
 
 #interface {
@@ -71,6 +73,27 @@
   font-family: var(--u-mono); font-size: 8px; letter-spacing: 0.2em; color: var(--u-dim); white-space: nowrap;
 }
 body.pressing .cursor-track { border-color: var(--u-amber); width: 34px; height: 34px; }
+
+/* ---- Predictive ghost cursor: the system's projection of the subject, led
+   ahead of the real cursor. Dashed cyan (a guess) → solid amber when it locks. ---- */
+.cursor-predict {
+  position: fixed; top: 0; left: 0; pointer-events: none; opacity: 0;
+  transform: translate(var(--px, 50vw), var(--py, 50vh)) translate(-50%, -50%);
+  width: 22px; height: 22px;
+  transition: opacity 0.6s ease, width 0.3s, height 0.3s;
+}
+.cursor-predict::before {
+  content: ''; position: absolute; inset: 0;
+  border: 1px dashed var(--u-cyan); border-radius: 2px;
+}
+.cursor-predict::after {
+  content: attr(data-tag); position: absolute; left: 130%; top: 50%; transform: translateY(-50%);
+  font-family: var(--u-mono); font-size: 8px; letter-spacing: 0.2em; color: var(--u-cyan);
+  white-space: nowrap; opacity: 0.75;
+}
+.cursor-predict.locked { width: 16px; height: 16px; }
+.cursor-predict.locked::before { border-style: solid; border-color: var(--u-amber); }
+.cursor-predict.locked::after { color: var(--u-amber); }
 
 /* ---- The system's spoken line ---- */
 .system-line {
@@ -163,7 +186,7 @@ body.pressing .cursor-track { border-color: var(--u-amber); width: 34px; height:
 
 /* ---- Mobile director's cut: bigger text, no tiny cursor ---- */
 @media (max-width: 820px), (pointer: coarse) {
-  .cursor-dot, .cursor-track { display: none; }
+  .cursor-dot, .cursor-track, .cursor-predict { display: none; }
   .system-line { bottom: 18%; font-size: 12px; letter-spacing: 0.2em; }
   .glyphs { left: 18px; bottom: 90px; font-size: 9px; }
   .frame::before, .frame::after { height: 0; }

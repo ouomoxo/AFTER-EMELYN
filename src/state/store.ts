@@ -25,6 +25,8 @@ export interface BehavioralSummary {
   intents: number;
   /** Derived 0..1 completion of the cognitive replica. */
   replica: number;
+  /** 0..1 confidence of the predictive cursor model (how well it anticipates you). */
+  prediction: number;
 }
 
 export interface SovereignState {
@@ -65,6 +67,7 @@ const emptyBehavior: BehavioralSummary = {
   hesitation: 0,
   intents: 0,
   replica: 0,
+  prediction: 0,
 };
 
 export const store = createStore<SovereignState>(() => ({

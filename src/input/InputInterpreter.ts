@@ -25,6 +25,14 @@ export class InputInterpreter {
   private dragging = false;
   private dragStartX = 0;
   private raf = 0;
+  // Predictive model of the subject: a smoothed velocity the system projects
+  // AHEAD of the real cursor. Its confidence (lead + lock) grows as the replica
+  // completes — the ghost starts vague and ends eerily on-target.
+  private velX = 0;
+  private velY = 0;
+  private predX = 0;
+  private predY = 0;
+  private hit = 0; // running "how close was the last prediction" 0..1
 
   constructor(private engine: Engine, private root: HTMLElement) {}
 
@@ -71,11 +79,21 @@ export class InputInterpreter {
     const ny = -((e.clientY / window.innerHeight) * 2 - 1);
     this.engine.setPointer(nx, ny);
 
+    const now = performance.now();
+    const dt = Math.max(8, now - this.lastMove);
     const dx = e.clientX - this.lastPos.x;
     const dy = e.clientY - this.lastPos.y;
+    // Score how well the LAST prediction anticipated where the cursor actually
+    // went (before we move the model on) — the system "learning" the subject.
+    const err = Math.hypot(this.predX - e.clientX, this.predY - e.clientY);
+    this.hit = this.hit * 0.94 + clamp(1 - err / 240) * 0.06;
+    // Smoothed velocity in px/ms — the basis of the projection.
+    const k = 0.4;
+    this.velX = this.velX * (1 - k) + (dx / dt) * k;
+    this.velY = this.velY * (1 - k) + (dy / dt) * k;
     this.travel += Math.hypot(dx, dy);
     this.lastPos = { x: e.clientX, y: e.clientY };
-    this.lastMove = performance.now();
+    this.lastMove = now;
 
     if (this.dragging) {
       const drag = (e.clientX - this.dragStartX) / window.innerWidth;
@@ -160,6 +178,27 @@ export class InputInterpreter {
     const idle = now - this.lastMove;
     if (idle > 500) this.hesitation += 16;
 
+    // --- Predictive ghost cursor: project the subject's motion ahead. ---
+    // Velocity bleeds off when the cursor rests, so the ghost settles onto it.
+    if (idle > 50) {
+      this.velX *= 0.9;
+      this.velY *= 0.9;
+    }
+    const replica = getState().behavior.replica;
+    // Confidence rises with the replica AND with the model's recent accuracy —
+    // the lead grows and the ghost locks tighter the longer it watches you.
+    const conf = clamp(0.14 + replica * 0.7 + this.hit * 0.25);
+    const leadMs = 165 * conf; // how far ahead the system projects you
+    const targetPX = this.lastPos.x + this.velX * leadMs;
+    const targetPY = this.lastPos.y + this.velY * leadMs;
+    // Track tightly so the projection actually LEADS the cursor (anticipation),
+    // rather than lagging behind it during motion.
+    this.predX += (targetPX - this.predX) * 0.5;
+    this.predY += (targetPY - this.predY) * 0.5;
+    this.root.style.setProperty('--px', `${this.predX}px`);
+    this.root.style.setProperty('--py', `${this.predY}px`);
+    this.root.style.setProperty('--pconf', conf.toFixed(3));
+
     const meanDwell = this.dwellCount ? this.dwellTotal / this.dwellCount : 0;
     const latency = this.latencyCount ? this.latencySum / this.latencyCount : 0;
 
@@ -177,6 +216,7 @@ export class InputInterpreter {
       hesitation: this.hesitation,
       intents: this.intents,
       replica: clamp(engaged),
+      prediction: clamp(0.14 + clamp(engaged) * 0.7 + this.hit * 0.25),
     });
   };
 }
