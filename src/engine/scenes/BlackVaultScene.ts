@@ -11,6 +11,7 @@ import type { SceneId } from '../../narrative/acts';
 import { PALETTE } from '../../util/palette';
 import { damp, lerp, remap, smoothstep } from '../../util/math';
 import { makePointsMaterial, type GlowPoints } from '../materials/Environment';
+import { lightShaft } from './sceneKit';
 import { setState } from '../../state/store';
 
 export class BlackVaultScene extends Scene {
@@ -36,6 +37,11 @@ export class BlackVaultScene extends Scene {
     const brass = new THREE.PointLight(0xb98a3a, 8, 18, 2);
     brass.position.set(0, 1.4, 3);
     this.three.add(amb, brass);
+
+    // Volumetric shaft: the reverent column of light descending onto the coffin.
+    const volShaft = lightShaft(10.5, 0.28, 2.0, 0xdfe8ea, 0.09);
+    volShaft.position.y = 5.75;
+    this.three.add(volShaft);
 
     // Black basalt hall — symmetric columns + floor.
     const stone = new THREE.MeshStandardMaterial({ color: 0x070708, metalness: 0.1, roughness: 0.75 });

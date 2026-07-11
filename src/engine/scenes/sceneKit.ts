@@ -5,8 +5,36 @@
  * stand up even before its GLB bundle finishes authoring.
  */
 import * as THREE from 'three';
+import { MeshBasicNodeMaterial } from 'three/webgpu';
+import { positionLocal, uniform, vec3, smoothstep } from 'three/tsl';
 import { PALETTE } from '../../util/palette';
 import { makePointsMaterial } from '../materials/Environment';
+
+/**
+ * A volumetric light shaft — an additive cone, brightest at the source, fading
+ * along its length and toward its rim. WebGPU-native (MeshBasicNodeMaterial),
+ * so it survives the renderer that broke plain particle sprites.
+ */
+export function lightShaft(
+  height: number,
+  rTop: number,
+  rBottom: number,
+  hex: number = PALETTE.cyan,
+  opacity = 0.14,
+): THREE.Mesh {
+  const geo = new THREE.CylinderGeometry(rTop, rBottom, height, 32, 1, true);
+  const mat = new MeshBasicNodeMaterial();
+  const c = new THREE.Color(hex);
+  mat.colorNode = vec3(c.r, c.g, c.b);
+  // Fade from the top (source) to the bottom over the local Y span.
+  const yN = positionLocal.y.div(height).add(0.5); // 0 at bottom → 1 at top
+  mat.opacityNode = smoothstep(0.0, 1.0, yN).mul(uniform(opacity));
+  mat.transparent = true;
+  mat.depthWrite = false;
+  mat.side = THREE.DoubleSide;
+  mat.blending = THREE.AdditiveBlending;
+  return new THREE.Mesh(geo, mat);
+}
 
 /** A cold three-point rig anchored on a target. */
 export function coldRig(scene: THREE.Scene, target: THREE.Vector3Tuple, keyI = 120) {
