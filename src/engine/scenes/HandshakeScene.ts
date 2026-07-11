@@ -33,8 +33,13 @@ export class HandshakeScene extends Scene {
   private authTime = 0;
   private reveal = 0; // 0..1 how "awake" the door is
   private held = false;
+  private freezeOpen = false; // debug: hold the door open for capture (?freezeopen)
 
   async build(ctx: SceneContext): Promise<void> {
+    // Read the debug flag before the router rewrites the URL to /handshake.
+    if (typeof location !== 'undefined' && new URLSearchParams(location.search).has('freezeopen')) {
+      this.freezeOpen = true;
+    }
     this.three.fog = new THREE.FogExp2(PALETTE.obsidianDeep, 0.12);
     this.three.background = new THREE.Color(PALETTE.obsidianDeep);
 
@@ -108,6 +113,9 @@ export class HandshakeScene extends Scene {
     ctx.camera.posLambda = 0.5;
     ctx.camera.setParallaxLimit(0.18, 0.1);
     setState({ interaction: 'observing', systemLine: 'INCOMING COGNITIVE SIGNATURE' });
+    // Debug aid: ?freezeopen (captured in build) authenticates immediately and
+    // holds the door open (never advances) so the leaf-parting can be captured.
+    if (this.freezeOpen) this.authenticate(ctx);
   }
 
   onPress(ctx: SceneContext, down: boolean): void {
@@ -131,13 +139,13 @@ export class HandshakeScene extends Scene {
     // Reveal the door as the subject engages.
     const targetReveal = this.authed ? 1 : Math.max(this.reveal, this.held ? 0.6 : 0.08);
     this.reveal = damp(this.reveal, targetReveal, 1.5, dt);
-    this.key.intensity = damp(this.key.intensity, 40 * this.reveal + (this.authed ? 60 : 0), 2, dt);
+    this.key.intensity = damp(this.key.intensity, 40 * this.reveal + (this.authed ? 26 : 0), 2, dt);
     this.rim.intensity = damp(this.rim.intensity, 6 * this.reveal, 2, dt);
 
     // Core pulse — a heartbeat that quickens as it wakes.
     if (this.coreMat) {
       const beat = 0.5 + 0.5 * Math.sin(time * (1.5 + this.reveal * 4));
-      this.coreMat.emissiveIntensity = 0.4 + beat * (0.6 + this.reveal * 2) + (this.authed ? 6 : 0);
+      this.coreMat.emissiveIntensity = 0.4 + beat * (0.6 + this.reveal * 2) + (this.authed ? 3 : 0);
     }
 
     // Press-and-hold authentication — measured against the WALL CLOCK so it is
@@ -164,12 +172,14 @@ export class HandshakeScene extends Scene {
       // Part horizontally along the seam (local X survives the stand-up rotation).
       if (this.leafL) this.leafL.position.x = this.leafLBase.x - open * 2.4;
       if (this.leafR) this.leafR.position.x = this.leafRBase.x + open * 2.4;
-      // Dolly the camera forward through the widening gap.
-      const push = smoothstep(clamp((t - 0.6) / 2.2));
+      // Dolly the camera forward through the widening gap. In freeze mode the
+      // dolly is held back so the parted leaves stay framed for capture.
+      const camT = this.freezeOpen ? Math.min(t, 0.7) : t;
+      const push = smoothstep(clamp((camT - 0.6) / 2.2));
       ctx.camera.posLambda = 1.1;
       ctx.camera.setTarget([0, 0, 5.2 - push * 6.4], [0, 0, -4]);
       this.three.fog && ((this.three.fog as THREE.FogExp2).density = 0.12 + push * 0.5);
-      if (t > 2.4) this.requestAdvance = true;
+      if (t > 2.4 && !this.freezeOpen) this.requestAdvance = true;
     }
 
     // Idle drift on the dust.

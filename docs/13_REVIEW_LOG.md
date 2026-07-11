@@ -17,6 +17,33 @@ Entry format:
 
 ---
 
+## 2026-07-11 — All six movements verified; Act I reworked; hero details
+**Mode:** CRITIC + IMPL
+**Affects:** P1–P10
+**Status:** RESOLVED
+Second full Critic pass, frame by frame at Tier A/B:
+- **Handshake** door-open confirmed (added a `?freezeopen` debug hold to capture
+  the mid-open beat): leaves part horizontally along the seam, the core flares,
+  and volumetric fog floods to mask the hand-off to Act I. Flare toned down
+  (core +6→+3, key +60→+26) so the reveal keeps depth instead of a total whiteout.
+- **Act I** was the weakest — a lone shaft in a void. Reworked into a descent
+  *threaded through* vertical data/structure conduits: strong converging
+  parallax, the racks/coolers/ring structures now read. This is the "prove the
+  tech" scene and now earns it.
+- **Mirror** replica silhouette now forms and reads (point size + wall-clock
+  assembly); both choices appear.
+- **Vault** reads as a reverent, symmetric reliquary; **Prediction** core +
+  behaviour cloud + predicted-cursor ghost all land.
+- Second-visit staging ("WELCOME BACK. WE KEPT YOUR MODEL.") and reduced-motion
+  → Tier D both verified.
+Acceptance criteria 1–10 are met to the level a WebGL2/SwiftShader capture can
+show. Known simplifications carried forward: mobile is responsive + Tier C rather
+than a fully distinct director's cut (P7 partial); audio is implemented but
+unverifiable headless (muted); WebGPU (Tier A path) is structured but the shipping
+renderer is WebGL2.
+
+---
+
 ## 2026-07-11 — join_all bevel bug fixed in the authoring library
 **Mode:** BLENDER
 **Affects:** docs 06, tools/blender/sovereign_bpy.py
