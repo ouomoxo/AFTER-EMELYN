@@ -50,15 +50,18 @@ materials_vocabulary:
   - M_ObsidianMatte
   - M_Graphite
   - M_GraphiteWorn
+  - M_GraphiteLight
   - M_Titanium
   - M_TitaniumPolish
   - M_Ceramic
   - M_CeramicMatte
   - M_Brass
   - M_SmokedGlass
+  - M_ClearGlass       # near-clear cover glass (co-processor display); never tints emission
   - M_Carbon
   - M_Data
   - M_DataSoft
+  - M_DataCore         # brighter data emissive for sealed cores/displays
   - M_Authority
   - M_Warning
   - M_Emergency
@@ -71,13 +74,21 @@ assets:
     output: "public/assets/models/auth_door.glb"
     tier: hero
     tri_budget: 42000
-    materials: [M_Graphite, M_Obsidian, M_ObsidianMatte, M_Data, M_Authority]
+    materials: [M_Graphite, M_GraphiteWorn, M_GraphiteLight, M_Titanium, M_TitaniumPolish, M_Ceramic, M_Carbon, M_Data, M_DataSoft, M_Authority, M_Warning]
     bundle: core
-    status: planned
+    status: shipped
+    tri_actual: 30864          # under the 42k budget
+    baked_variant: none        # ships un-baked; the AO bake blew base color white under glTF
     notes: >
-      The "pure black" that is revealed to be a vast metal door. Massive scale,
-      deep bevels, panel_cut() seams that light cyan (data) then white
-      (authority) as it opens. Silhouette must read at 100mm compression.
+      The "pure black" revealed to be a monumental pressure door — REBUILT 2026-07
+      from a flat scanner panel into a full architecture: a machined bulkhead WALL
+      (portal frame + bolt rows + conduits + warning bands) around two THICK armored
+      LEAVES (perimeter frames, armor bands + rivets, layered inner-seam armor seen
+      on open), radial LOCK DOGS, hydraulic RAMS, a lit TUNNEL with a cyan shaft-mouth
+      (depth beyond, not a black wall), a central machined EYE (Core), and a grated
+      FLOOR with a hazard threshold for scale. Named parts Leaf_L / Leaf_R / Core
+      drive the scene. Ships un-baked on every tier. Verified in-engine
+      (docs/_ref/web/hs_*.png): establishing → push → authenticate → open/tunnel.
 
   - id: auth_ring
     movement: "PROLOGUE — HANDSHAKE"
@@ -100,14 +111,21 @@ assets:
     output: "public/assets/models/cybernetic_module.glb"
     tier: hero
     tri_budget: 180000
-    materials: [M_Ceramic, M_Carbon, M_Titanium, M_TitaniumPolish, M_Graphite, M_SmokedGlass, M_Brass, M_Data, M_DataSoft, M_Warning]
+    materials: [M_Ceramic, M_CeramicMatte, M_Carbon, M_Titanium, M_TitaniumPolish, M_Graphite, M_GraphiteWorn, M_GraphiteLight, M_ObsidianMatte, M_Obsidian, M_SmokedGlass, M_ClearGlass, M_Brass, M_Data, M_DataSoft, M_DataCore]
     bundle: augment
-    status: planned
+    status: shipped
+    tri_actual: 81536          # well under the 180k budget
+    baked_variant: "public/assets/models/cybernetic_module_baked.glb (2048² AO, tier A/B)"
     notes: >
-      HERO of the film. Assembled from the five layer sub-assets below into one
-      GLB with named nodes so the runtime can drive the exploded view per layer.
-      Medical device x military x luxury industrial — NOT a robot. tri_budget is
-      the sum of the five layers; each layer node stays individually addressable.
+      HERO of the film — REBUILT 2026-07 from the art up (was a stacked-primitive
+      blockout). One GLB, six named nodes the runtime explodes: Spinal_Interface
+      (articulated vertebrae — centrum/facets/pedicles/arch/spinous/transverse —
+      + hydraulic actuators + base flange + medical connector cluster),
+      Neural_Conductor (branching cyan routing), Muscle_Layer (braided strands +
+      clamps + pneumatic lines), Dermal_Shell_L/R (seamed ceramic panels, vent on
+      L / service hatch on R), Memory_Coprocessor (finned heatsink + bezel data
+      display). Medical × military × luxury industrial, authored to survive 65–85mm
+      inspection. Verified assembled + exploded in-engine (docs/_ref/web/mod_*.png).
 
   - id: cybernetic_layer_dermal
     movement: "ACT II — HUMAN REVISION"

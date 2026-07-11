@@ -32,15 +32,29 @@ recorded run). "Looks fine" is not evidence.
 A movement is **done** only when all rows are `PASS`.
 
 ### PROLOGUE — HANDSHAKE (`/handshake`)
-- [ ] First paint is obsidian; **no white flash** (verify boot).
-- [ ] `INCOMING COGNITIVE SIGNATURE` shows; cursor becomes a **lagging
-      tracking-dot** with visible lag-trail.
-- [ ] Press-and-hold ~2s authenticates; early release aborts and restates.
-- [ ] Black is revealed as a **vast metal door**; one three-beat push-through
-      into Act I with no visible page load.
-- [ ] Keyboard hold + reduced-motion alternative both complete auth (doc 11).
-- [ ] **P9:** interactive within the 20s window.
-- [ ] Lens reads as 100mm surveillance.
+> **Rebuilt 2026-07 (hero slice).** Old flat scanner-panel door replaced by a
+> monumental pressure-door environment (wall / portal / thick armored leaves /
+> lock dogs / hydraulics / lit tunnel / floor). Evidence: in-engine WebGL2
+> captures `docs/_ref/web/hs_{1_establish,3_press,4_open}.png` (landscape tier A)
+> and `m_hs_establish.png` (portrait tier C); Blender refs `docs/_ref/door_*.png`.
+- [x] First paint is obsidian; **no white flash** — establishing frame is
+      near-black (`hs_1_establish.png`, `m_hs_establish.png`).
+- [x] `INCOMING COGNITIVE SIGNATURE` shows; cursor becomes a **lagging
+      tracking-dot** (visible in every handshake capture).
+- [x] Press-and-hold ~2s authenticates; early release aborts and restates —
+      `hs_3_press.png` (`AUTHENTICATING`, camera pushed to the eye).
+- [x] Black is revealed as a **vast metal door**; one three-beat push-through
+      into the tunnel with no visible page load — establishing→push→open reads
+      across `hs_1/hs_3/hs_4`; `hs_4_open.png` shows the leaves parted and the
+      camera pulled into the glowing eye/tunnel.
+- [ ] Keyboard hold + reduced-motion alternative both complete auth (doc 11) —
+      *not re-verified after rebuild.*
+- [ ] **P9:** interactive within the 20s window — *not timed after rebuild.*
+- [~] Lens grammar: **DEVIATION** — reframed from a single 100mm surveillance
+      hold to a wide low **establishing** (42mm) that pushes to ~58mm on the
+      core, so the monumental architecture + floor scale read (the critic's
+      requirement). Cold-observation intent preserved; focal length changed by
+      design. Logged in `13_REVIEW_LOG.md`.
 
 ### ACT I — CITY NERVOUS SYSTEM (`/infrastructure`)
 - [ ] Camera travels through **interior organs**, never neon streets.
@@ -52,12 +66,25 @@ A movement is **done** only when all rows are `PASS`.
 - [ ] 22mm scale reads (organs dwarf the subject).
 
 ### ACT II — HUMAN REVISION (`/augmentation`)
-- [ ] Module reads as **medical×military×luxury, not a robot**.
-- [ ] Drag rotates camera **only within 20–30°** — **not `OrbitControls`**.
-- [ ] Exploded view separates the **5 named layers** in order with correct labels.
-- [ ] Anomaly `VOLUNTARY CONTROL 41% / PREDICTIVE OVERRIDE 59%` +
-      `CONTROL DEVICE` classification lands; amber's first appearance.
-- [ ] Hero fidelity; ≤200 draw calls at peak; within tri band.
+> **Rebuilt 2026-07 (hero slice).** Old stacked-primitive spine replaced by an
+> anatomically-credible surgical augmentation: articulated vertebrae
+> (centrum/facets/pedicles/arch/spinous/transverse), hydraulic actuators,
+> braided muscle, branching neural conductor, seamed ceramic shells (vent + service
+> hatch), asymmetric medical connectors, a finned co-processor. 81.5k tris,
+> 370KB Draco (+2048² AO-baked variant, tier A/B). Evidence: in-engine captures
+> `docs/_ref/web/mod_{1_assembled,2_explode}.png`, `m_mod.png`; Blender refs
+> `docs/_ref/{cybernetic_module,module_assembled,module_memory,cybernetic_module_baked}.png`.
+- [x] Module reads as **medical×military×luxury, not a robot** — assembled +
+      exploded refs and in-engine captures.
+- [x] Drag rotates camera **only within ±14°** — constrained damped orbit in
+      `AugmentationScene`, not `OrbitControls` (input→intent→damped target).
+- [x] Exploded view separates the named layers in order with labels —
+      `mod_2_explode.png` shows dermal shells parted, interior (braided muscle,
+      articulated spine, cyan neural, co-processor) revealed, `SPINAL INTERFACE`.
+- [ ] Anomaly `VOLUNTARY 41% / OVERRIDE 59%` + classification — code fires at
+      progress > 0.82; *anomaly frame not captured yet.*
+- [~] Hero fidelity within tri band (81.5k ✓, band 300K–900K scene-wide); **draw
+      calls not profiled** after rebuild.
 
 ### ACT III — PREDICTION ENGINE (`/prediction`)
 - [ ] Circular hall + floating faceted **core** as center; sims orbit it.

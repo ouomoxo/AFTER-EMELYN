@@ -186,6 +186,51 @@ prevent a future "there are two build scripts" false-bug.
 
 ---
 
+## 2026-07-11 — REBUILD: two hero slices from the art up (HANDSHAKE + HUMAN REVISION)
+**Mode:** CRITIC → IMPL
+**Affects:** auth_door, cybernetic_module, HandshakeScene, AugmentationScene, doc 07/12
+**Status:** SHIPPED (two slices); remaining scenes intentionally untouched
+
+**Audit accepted.** An external critic scored the prior build ~35/100 vs award-grade
+and diagnosed the bottleneck correctly: the ART (Blender geometry + cinematic space),
+not the engine. The 3D was procedural-primitive blockout (stacked cylinders/boxes,
+swept-tube muscle, box-fin heatsink; a flat scanner-panel door), the scenes were
+display-stands, and "verified" had been overstated. Directive followed verbatim:
+**preserve** engine/routing/timeline/input/audio/deploy; **do not** polish all six
+scenes; **rebuild only** HANDSHAKE and HUMAN REVISION from the art and space up.
+
+**Done.**
+- New authoring layer `tools/blender/sovereign_kit.py`: real machined hardware —
+  hex bolts, socket caps, keyed connector ports, louvered vents, hydraulic
+  actuators (barrel/gland/rod/clevis/cross-pin), parallel-transport swept tubes,
+  braided artificial-muscle strands, boolean helper.
+- HUMAN REVISION: articulated vertebrae (centrum/facets/pedicles/arch/spinous/
+  transverse), zig-zag actuators, armored conduit, base flange, asymmetric medical
+  connectors, branching neural conductor, braided muscle + clamps + pneumatic lines,
+  three-panel seamed ceramic shells (vent L / service hatch R), finned co-processor
+  with a bezel data display. 81.5k tris / 370KB; +2048² AO-baked tier-A/B variant.
+- HANDSHAKE: monumental pressure-door environment (wall/portal/thick armored leaves/
+  lock dogs/hydraulics/lit tunnel with cyan shaft-mouth/floor+threshold), central
+  machined eye. 31k tris / 135KB. Scene retuned: wide low establishing → ratcheting
+  push-in → dolly through the parting leaves into the tunnel; near-black-then-reveal
+  lighting.
+- Verified in-engine (WebGL2 under SwiftShader) at desktop tier A + portrait tier C,
+  plus multi-angle Blender refs. Iterated on-render: fixed cyan-flood lookdev, a
+  dead co-processor window, over-narrow/flat leaves, a blown-white door.
+
+**Deviations logged.**
+- Handshake lens: reframed 100mm-surveillance-hold → 42mm establishing that pushes
+  to ~58mm, so the architecture + floor scale read. Cold-observation intent kept.
+- auth_door ships **un-baked** on every tier: its AO bake blew the base color to
+  white under glTF (module bake is fine and retained). Geometry needs no AO help.
+
+**Remaining gaps (by design — not this slice).** Prediction still scales the cursor
+rather than predicting; Vault reveals dust not faces; Mirror silhouette isn't
+behavior-driven; `markPrompt()`/decisionLatency still unwired. These were explicitly
+out of scope ("do not polish all six scenes") and remain OPEN for a later pass.
+
+---
+
 ## Template for the next entry
 ```
 ## YYYY-MM-DD — <title>
