@@ -35,7 +35,10 @@ export class AugmentationScene extends Scene {
   private module?: THREE.Object3D;
   private parts: Record<string, THREE.Object3D> = {};
   private basePos: Record<string, THREE.Vector3> = {};
-  private neuralMat?: THREE.MeshStandardMaterial;
+  // The neural conductor is a multi-material Group (core/branches/nodes), so we
+  // collect every emissive material under it and pulse each relative to its
+  // baked base intensity — the whole nervous system breathes together.
+  private neuralMats: { mat: THREE.MeshStandardMaterial; base: number }[] = [];
   private signals: THREE.PointLight[] = [];
   private yaw = 0;
   private pitch = 0;
@@ -74,9 +77,19 @@ export class AugmentationScene extends Scene {
           this.basePos[name] = o.position.clone();
         }
       }
-      // Grab the neural material so we can drive a living signal pulse.
-      const neural = a.parts['Neural_Conductor'] as THREE.Mesh;
-      if (neural?.isMesh) this.neuralMat = neural.material as THREE.MeshStandardMaterial;
+      // Collect every emissive material under the neural conductor so the signal
+      // pulse survives the part being a multi-material Group after Blender join.
+      const neural = a.parts['Neural_Conductor'];
+      const seen = new Set<THREE.MeshStandardMaterial>();
+      neural?.traverse((o) => {
+        const mesh = o as THREE.Mesh;
+        if (!mesh.isMesh) return;
+        const mm = mesh.material as THREE.MeshStandardMaterial;
+        if (mm?.emissive && (mm.emissiveIntensity ?? 0) > 0.01 && !seen.has(mm)) {
+          seen.add(mm);
+          this.neuralMats.push({ mat: mm, base: mm.emissiveIntensity });
+        }
+      });
 
       // Two cyan signals that travel up the spine — the nervous system alive.
       for (let i = 0; i < 2; i++) {
@@ -139,9 +152,8 @@ export class AugmentationScene extends Scene {
       sig.position.set(0, 0.2 + t * 1.4, 0.06);
       sig.intensity = Math.sin(t * Math.PI) * 3.0;
     });
-    if (this.neuralMat) {
-      this.neuralMat.emissiveIntensity = 1.0 + Math.sin(time * 3.5) * 0.5 + this.explode * 0.8;
-    }
+    const pulse = 1.0 + Math.sin(time * 3.5) * 0.35 + this.explode * 0.6;
+    for (const n of this.neuralMats) n.mat.emissiveIntensity = n.base * pulse;
 
     // Scrub separates the layers in sequence (shell → muscle → neural → memory).
     this.explode = damp(this.explode, smoothstep(p), 2.4, dt);
