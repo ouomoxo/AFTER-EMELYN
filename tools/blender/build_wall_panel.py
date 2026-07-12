@@ -17,6 +17,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bpy, bmesh  # type: ignore
 from mathutils import Vector  # type: ignore
 import sovereign_bpy as S
+import sovereign_kit as K
 
 RENDER = "--render" in sys.argv
 OUT = os.path.join(os.path.dirname(__file__), "../../public/assets/models/wall_panel.glb")
@@ -122,6 +123,20 @@ for bx in (-0.50, 0.50):
         b.rotation_euler = (math.radians(90), 0, 0)
         S.assign(b, m["titanium_polish"])
         bolt_parts.append(b)
+# density: mid edge bolts + greeble plates + a vent + a junction box w/ connector
+# (this panel tiles across the whole Act I hall, so the detail repeats)
+for bx in (-0.50, 0.50):
+    bolt_parts += K.hex_bolt(f"WP_edge{bx}", (bx, FY - 0.012, 0.0), col, m,
+                             r=0.02, head_h=0.02, washer=False, axis=(0, -1, 0))
+for gz in (-0.28, 0.28):
+    bolt_parts.append(K.greeble_plate(f"WP_gp{gz}", (0.0, FY - 0.006, gz),
+                      (1, 0, 0), (0, 0, 1), 0.16, 0.10, col, m["graphite_light"]))
+bolt_parts += K.vent_louvers("WP_vent", (0.0, FY - 0.004, -0.30),
+                             (1, 0, 0), (0, 0, 1), 0.22, 0.14, col, m, slats=6, tilt=0.5)
+jb = S.box("WP_junction", (0.16, 0.05, 0.20), (0.0, FY + 0.02, 0.30), col)
+S.assign(jb, m["graphite"]); bolt_parts.append(jb)
+bolt_parts += K.connector_port("WP_jc", (0.0, FY + 0.045, 0.30), col, m,
+                               r=0.03, depth=0.02, axis=(0, 1, 0), pins=7)
 Bolts = S.join_all(bolt_parts, "Bolts")
 S.bevel(Bolts, 0.002, 1)
 S.shade_smooth(Bolts)

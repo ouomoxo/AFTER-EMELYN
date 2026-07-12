@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bpy, bmesh  # type: ignore
 from mathutils import Vector  # type: ignore
 import sovereign_bpy as S
+import sovereign_kit as K
 
 RENDER = "--render" in sys.argv
 OUT = os.path.join(os.path.dirname(__file__), "../../public/assets/models/server_rack.glb")
@@ -123,6 +124,22 @@ for sx in (-0.205, -0.075):
     scr.rotation_euler = (math.radians(90), 0, 0)
     S.assign(scr, m["graphite_light"])
     bay_parts.append(scr)
+
+# --- density: a status-LED strip, corner fasteners, and a data port per bay
+#     (this bay is arrayed up the whole column, so the detail multiplies) ---
+for li in range(8):
+    lx = -0.22 + li * 0.055
+    led = S.box(f"Bay_LED_{li}", (0.011, 0.007, 0.008), (lx, plate_y - 0.028, bz + 0.145), col)
+    S.assign(led, m["data"] if li % 4 else (m["warning"] if li % 3 else m["emergency"]))
+    bay_parts.append(led)
+for bx in (-0.245, 0.245):
+    for bz2 in (bz - 0.14, bz + 0.14):
+        bay_parts += K.hex_bolt(f"Bay_bolt{bx}{bz2:.2f}", (bx, plate_y - 0.026, bz2),
+                                col, m, r=0.006, head_h=0.006, washer=False, axis=(0, -1, 0))
+bay_parts += K.connector_port("Bay_port", (0.20, plate_y - 0.03, bz - 0.05), col, m,
+                              r=0.018, depth=0.014, axis=(0, -1, 0), pins=6)
+disp = S.box("Bay_Disp", (0.09, 0.006, 0.05), (0.02, plate_y - 0.03, bz + 0.10), col)
+S.assign(disp, m["obsidian_matte"]); bay_parts.append(disp)
 
 Bays = S.join_all(bay_parts, "Bays")
 S.bevel(Bays, 0.003, 2)
