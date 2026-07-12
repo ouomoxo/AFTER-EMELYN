@@ -94,17 +94,29 @@ for side, (cx, cy, sx, sy) in {
     S.assign(liner, m["titanium"]); S.bevel(liner, 0.008, 2)
     wall_parts.append(liner)
 
-# Structural bolt rows framing the portal (big machined fasteners).
-for i in range(11):
-    fy = -PH + i * (2 * PH / 10)
+# Structural bolt rows framing the portal — DOUBLE rows, dense machined fasteners.
+for i in range(17):
+    fy = -PH + i * (2 * PH / 16)
     for sx in (-1, 1):
-        wall_parts += K.hex_bolt(f"WboltV{i}{sx}", (sx * (PW + 0.22), fy, WALL_FRONT + 0.01),
-                                 col, m, r=0.05, head_h=0.05, axis=(0, 0, 1))
-for i in range(9):
-    fx = -PW + i * (2 * PW / 8)
+        for j, off in enumerate((0.16, 0.30)):
+            wall_parts += K.hex_bolt(f"WboltV{i}{sx}{j}", (sx * (PW + off), fy, WALL_FRONT + 0.01),
+                                     col, m, r=0.032, head_h=0.032, axis=(0, 0, 1))
+for i in range(13):
+    fx = -PW + i * (2 * PW / 12)
     for sy in (-1, 1):
-        wall_parts += K.hex_bolt(f"WboltH{i}{sy}", (fx, sy * (PH + 0.22), WALL_FRONT + 0.01),
-                                 col, m, r=0.05, head_h=0.05, axis=(0, 0, 1))
+        for j, off in enumerate((0.16, 0.30)):
+            wall_parts += K.hex_bolt(f"WboltH{i}{sy}{j}", (fx, sy * (PH + off), WALL_FRONT + 0.01),
+                                     col, m, r=0.032, head_h=0.032, axis=(0, 0, 1))
+# conduit junction boxes on the outer wall (powered infrastructure density)
+for (jx, jy) in [(-WALL_X + 1.0, PH + 1.4), (WALL_X - 1.0, -PH - 1.4),
+                 (-WALL_X + 1.4, -PH - 0.6), (WALL_X - 1.4, PH + 0.6)]:
+    jb = S.box(f"Wjb{jx:.0f}{jy:.0f}", (0.34, 0.5, 0.12), (jx, jy, WALL_FRONT + 0.02), col)
+    S.assign(jb, m["graphite"]); S.bevel(jb, 0.006, 1)
+    wall_parts.append(jb)
+    wall_parts += K.bolt_ring(f"Wjbr{jx:.0f}{jy:.0f}", (jx, jy, WALL_FRONT + 0.08), (0, 0, 1),
+                              0.19, 8, col, m, r=0.012, head_h=0.012)
+    wall_parts += K.connector_port(f"Wjbc{jx:.0f}{jy:.0f}", (jx, jy - 0.16, WALL_FRONT + 0.06),
+                                   col, m, r=0.05, depth=0.03, axis=(0, 0, 1), pins=7)
 
 # Recessed panel seams + machined bands on the big wall faces (break the flats).
 for i, fy in enumerate([PH + 0.5, PH + 1.1, -PH - 0.5, -PH - 1.1]):
@@ -168,22 +180,39 @@ def make_leaf(name, sign):
     for nm, sz, loc in frame:
         r = S.box(nm, sz, loc, col); S.assign(r, m["titanium_polish"]); S.bevel(r, 0.006, 1)
         parts.append(r)
-    # horizontal ARMOR BANDS with rivet rows (blast-plate language, not panels)
-    for bi, by in enumerate([PH * 0.62, PH * 0.21, -PH * 0.21, -PH * 0.62]):
-        band = S.box(f"{name}_band{bi}", (lw - 0.24, 0.16, 0.055), (cx, by, fz + 0.015), col)
+    # horizontal ARMOR BANDS with DOUBLE dense rivet rows (blast-plate density)
+    band_ys = [PH * 0.62, PH * 0.21, -PH * 0.21, -PH * 0.62]
+    for bi, by in enumerate(band_ys):
+        band = S.box(f"{name}_band{bi}", (lw - 0.24, 0.18, 0.055), (cx, by, fz + 0.015), col)
         S.assign(band, m["graphite_light"]); S.bevel(band, 0.006, 1)
         parts.append(band)
-        for ri in range(5):
-            rx = cx - (lw - 0.4) / 2 + ri * (lw - 0.4) / 4
-            parts += K.hex_bolt(f"{name}_rv{bi}{ri}", (rx, by, fz + 0.04),
-                                col, m, r=0.022, head_h=0.022, washer=False, axis=(0, 0, 1))
-    # big corner bolts
+        for row, ry in enumerate((by + 0.052, by - 0.052)):
+            for ri in range(11):
+                rx = cx - (lw - 0.36) / 2 + ri * (lw - 0.36) / 10
+                parts += K.hex_bolt(f"{name}_rv{bi}{row}{ri}", (rx, ry, fz + 0.038),
+                                    col, m, r=0.015, head_h=0.015, washer=False, axis=(0, 0, 1))
+    # recessed detail panels between the bands + small greeble hardware
+    for pi, py in enumerate([PH * 0.415, 0.0, -PH * 0.415]):
+        pan = S.box(f"{name}_pan{pi}", (lw - 0.44, 0.30, 0.02), (cx, py, fz - 0.006), col)
+        S.assign(pan, m["obsidian_matte"]); S.bevel(pan, 0.004, 1)
+        parts.append(pan)
+        for gx in (-1, 1):
+            parts.append(K.greeble_plate(f"{name}_gp{pi}{gx}",
+                         (cx + gx * lw * 0.26, py, fz + 0.008), (1, 0, 0), (0, 1, 0),
+                         0.13, 0.09, col, m["titanium"]))
+        parts.append(K.greeble_plate(f"{name}_gpc{pi}", (cx, py, fz + 0.008),
+                     (1, 0, 0), (0, 1, 0), 0.20, 0.05, col, m["graphite_worn"]))
+    # a louvered vent recessed in the lower panel (asymmetric: left leaf only)
+    if sign < 0:
+        parts += K.vent_louvers(f"{name}_vent", Vector((cx, -PH * 0.415, fz + 0.03)),
+                                Vector((1, 0, 0)), Vector((0, 1, 0)), 0.5, 0.2, col, m, slats=8, tilt=0.5)
+    # big corner bolts + a ring of medium bolts inside each corner (density)
     for bx in (-1, 1):
         for by in (-1, 1):
-            parts += K.hex_bolt(f"{name}_cb{bx}{by}",
-                                (cx + bx * (lw / 2 - 0.16), by * (PH - 0.22), fz + 0.03),
-                                col, m, r=0.05, head_h=0.05, axis=(0, 0, 1))
-    # small data readout plate (restrained; sits on the top band, outer side)
+            cxy = (cx + bx * (lw / 2 - 0.16), by * (PH - 0.22), fz + 0.03)
+            parts += K.hex_bolt(f"{name}_cb{bx}{by}", cxy, col, m, r=0.05, head_h=0.05, axis=(0, 0, 1))
+            parts += K.bolt_ring(f"{name}_cbr{bx}{by}", cxy, (0, 0, 1), 0.11, 6, col, m, r=0.012, head_h=0.012)
+    # data readout plate with a bolt-ringed bezel (top, outer side)
     dp = K._plate(f"{name}_data", Vector((cx + sign * lw * 0.22, PH * 0.62, fz + 0.06)),
                   Vector((1, 0, 0)), Vector((0, 1, 0)), 0.30, 0.10, 0.02, col, m["data_soft"])
     parts.append(dp)
