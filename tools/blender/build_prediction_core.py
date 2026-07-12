@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bpy, bmesh  # type: ignore
 from mathutils import Vector, Matrix  # type: ignore
 import sovereign_bpy as S
+import sovereign_kit as K
 
 RENDER = "--render" in sys.argv
 OUT = os.path.join(os.path.dirname(__file__), "../../public/assets/models/prediction_core.glb")
@@ -122,22 +123,32 @@ def gyro(idx, r, depth, wall, tilt, mat, verts=248, ticks=0):
         tk = ring_ticks(f"{idx}_ticks", r - wall - 0.006, ticks,
                         0.024, 0.006, depth * 0.42, col, m["titanium_polish"])
         parts.append(tk)
-    # Pivot bosses on the gimbal axis (±X of the untilted ring).
+    # Gimbal bearing HOUSINGS on the pivot axis (±X of the untilted ring): a
+    # machined bearing box + bolt ring + a shaft boss + a data connector. This
+    # is the biggest density add — real gimbal joints, not bare stubs.
     for sx in (-1, 1):
-        boss = S.cyl(f"{idx}_pivot", 0.045, depth + 0.05, 20,
-                     (sx * (r - wall / 2), 0, 0), col)
+        px = sx * (r - wall / 2)
+        boss = S.cyl(f"{idx}_pivot{sx}", 0.045, depth + 0.10, 24, (px, 0, 0), col)
         boss.rotation_euler = (0, math.pi / 2, 0)
         S.assign(boss, m["titanium_polish"]); S.shade_smooth(boss)
         parts.append(boss)
+        hx = sx * (r + 0.02)
+        house = S.box(f"{idx}_gh{sx}", (0.10, 0.11, depth + 0.08), (hx, 0, 0), col)
+        S.assign(house, m["graphite"]); S.bevel(house, 0.004, 2)
+        parts.append(house)
+        parts += K.bolt_ring(f"{idx}_ghb{sx}", (sx * (r + 0.07), 0, 0), (sx, 0, 0),
+                             0.065, 6, col, m, r=0.007, head_h=0.007)
+        parts += K.connector_port(f"{idx}_ghc{sx}", (hx, 0.062, 0), col, m,
+                                  r=0.026, depth=0.02, axis=(0, 1, 0), pins=5)
     g = S.join_all(parts, f"Gyro_{idx}")
     g.rotation_euler = tilt
     return g
 
 # Three mutually-perpendicular hoops, nested by radius so they never intersect.
-gyro(0, 1.14, 0.11, 0.026, (0.0, 0.0, 0.0), m["titanium"], ticks=96)      # equator
+gyro(0, 1.14, 0.11, 0.026, (0.0, 0.0, 0.0), m["titanium"], ticks=144)     # equator
 gyro(1, 1.32, 0.12, 0.026, (math.pi / 2, 0.0, 0.0), m["graphite_light"],
-     ticks=96)                                                            # meridian
-gyro(2, 1.50, 0.12, 0.024, (0.0, math.pi / 2, 0.0), m["titanium"])        # meridian
+     ticks=144)                                                           # meridian
+gyro(2, 1.50, 0.12, 0.024, (0.0, math.pi / 2, 0.0), m["titanium"], ticks=132)  # meridian
 
 
 # ---------------------------------------------------------------------------
@@ -165,6 +176,20 @@ for i in range(NBolt):
     bolt = S.cyl(f"Cradle_Bolt_{i}", 0.022, 0.05, 8, (bx, by, BASE_Z + 0.075), col)
     S.assign(bolt, m["titanium_polish"])
     cradle_parts.append(bolt)
+
+# Instrument pods around the base ring — machined gauge housings + data
+# connectors + a bolt ring each (the base reads as a real instrument deck).
+for i in range(6):
+    a = (i / 6) * math.tau + math.radians(30)
+    px, py = math.cos(a) * 0.95, math.sin(a) * 0.95
+    pod = S.box(f"Cradle_Inst{i}", (0.15, 0.11, 0.10), (px, py, BASE_Z + 0.11), col)
+    pod.rotation_euler = (0, 0, a)
+    S.assign(pod, m["graphite"]); S.bevel(pod, 0.004, 2)
+    cradle_parts.append(pod)
+    cradle_parts += K.connector_port(f"Cradle_InstC{i}", (px, py, BASE_Z + 0.17),
+                                     col, m, r=0.026, depth=0.02, axis=(0, 0, 1), pins=7)
+    cradle_parts += K.bolt_ring(f"Cradle_InstB{i}", (px, py, BASE_Z + 0.165),
+                                (0, 0, 1), 0.075, 6, col, m, r=0.006, head_h=0.006)
 
 # A single machined central column rises to a cradle cup; the sphere hovers
 # above it with a clean suspension gap. Quieter and more monolithic than a
