@@ -122,7 +122,7 @@ export class Engine {
   async start(first: SceneId = 'handshake') {
     // WebGPURenderer must initialize its device before any render / PMREM use.
     await this.renderer.init();
-    this.env = buildEnvironment(this.renderer);
+    this.env = await buildEnvironment(this.renderer);
     // Record which backend actually resolved (webgpu vs webgl fallback).
     const backend = (this.renderer.backend as { isWebGPUBackend?: boolean })?.isWebGPUBackend ? 'webgpu' : 'webgl';
     setState({ backend });

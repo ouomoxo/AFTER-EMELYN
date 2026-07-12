@@ -1,48 +1,58 @@
 /**
- * SOVEREIGN//77 — Procedural IBL environment.
- * A cold studio: near-black surround with a few soft emissive panels so the
- * machined metal has something surgical to reflect. Generated once via PMREM
- * and shared by every scene. No HDRI download — keeps the bootstrap lean.
+ * SOVEREIGN//77 — IBL environment.
+ * Real image-based lighting from a Blender-authored studio HDRI (dark surgical
+ * room, shaped softboxes, cyan practicals, overhead rig) so polished titanium /
+ * ceramic reflect a believable world. Falls back to a lean procedural studio if
+ * the HDRI can't load. Generated once via PMREM and shared by every scene.
  */
 import * as THREE from 'three';
+import { RGBELoader } from 'three/examples/jsm/loaders/RGBELoader.js';
 import { PointsNodeMaterial, type WebGPURenderer } from 'three/webgpu';
 import { vec3, uniform } from 'three/tsl';
 
 /** PointsNodeMaterial with an animatable opacity uniform exposed as `.uOpacity`. */
 export type GlowPoints = PointsNodeMaterial & { uOpacity: { value: number } };
 
-export function buildEnvironment(renderer: WebGPURenderer): THREE.Texture | null {
+/** Load the authored studio HDRI → PMREM. Async; the Engine awaits it at boot. */
+export async function buildEnvironment(renderer: WebGPURenderer): Promise<THREE.Texture | null> {
+  const base = import.meta.env.BASE_URL;
+  try {
+    const hdr = await new RGBELoader().loadAsync(`${base}assets/env/studio.hdr`);
+    hdr.mapping = THREE.EquirectangularReflectionMapping;
+    const pmrem = new THREE.PMREMGenerator(renderer as unknown as THREE.WebGLRenderer);
+    const env = pmrem.fromEquirectangular(hdr).texture;
+    pmrem.dispose();
+    hdr.dispose();
+    return env;
+  } catch (e) {
+    console.warn('[SOVEREIGN] studio HDRI unavailable, using procedural studio', e);
+    return buildProceduralEnvironment(renderer);
+  }
+}
+
+/** Fallback: a few emissive panels through PMREM (no HDRI fetch). */
+function buildProceduralEnvironment(renderer: WebGPURenderer): THREE.Texture | null {
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x040406);
-
-  // Soft cold key panel (surgical white)
   const panel = (color: number, intensity: number, w: number, h: number, pos: THREE.Vector3Tuple) => {
-    const geo = new THREE.PlaneGeometry(w, h);
     const mat = new THREE.MeshBasicMaterial({ color });
     mat.color.multiplyScalar(intensity);
-    const m = new THREE.Mesh(geo, mat);
+    const m = new THREE.Mesh(new THREE.PlaneGeometry(w, h), mat);
     m.position.set(...pos);
     m.lookAt(0, 0, 0);
     scene.add(m);
-    return m;
   };
-
-  panel(0xdfe6ea, 3.4, 14, 8, [6, 8, 6]);   // key
-  panel(0x1a2226, 1.1, 20, 12, [-10, 2, -6]); // cool fill
-  panel(0x123033, 1.0, 10, 3, [-4, -3, 8]);   // faint cyan data bounce
-  panel(0x0a0c10, 1.0, 30, 30, [0, -12, 0]);  // floor
-
+  panel(0xdfe6ea, 3.4, 14, 8, [6, 8, 6]);
+  panel(0x1a2226, 1.1, 20, 12, [-10, 2, -6]);
+  panel(0x123033, 1.0, 10, 3, [-4, -3, 8]);
+  panel(0x0a0c10, 1.0, 30, 30, [0, -12, 0]);
   let env: THREE.Texture | null = null;
   try {
-    // At runtime `three` is aliased to the WebGPU build, so PMREMGenerator here
-    // accepts the WebGPURenderer; the cast only satisfies the classic d.ts.
     const pmrem = new THREE.PMREMGenerator(renderer as unknown as THREE.WebGLRenderer);
     env = pmrem.fromScene(scene, 0.02).texture;
     pmrem.dispose();
   } catch (e) {
-    // If PMREM is unavailable on this backend, scenes still render on their own
-    // lights — just with less environment reflection.
-    console.warn('[SOVEREIGN] PMREM environment unavailable, continuing without IBL', e);
+    console.warn('[SOVEREIGN] PMREM unavailable, continuing without IBL', e);
   }
   scene.traverse((o) => {
     const m = o as THREE.Mesh;
