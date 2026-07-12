@@ -1,0 +1,42 @@
+{
+  "_comment": "Final camera of infra_flythrough.webm. Realtime InfrastructureScene matches this on its first frame for an invisible video->realtime cut. Y-up, right-handed, camera looks down local -Z (three.js convention). FOV convention matches CameraDirector.lensToFov (sensor height 24mm, vertical).",
+  "position": [
+    0.0,
+    -56.0,
+    3.7
+  ],
+  "lookAt": [
+    0.0,
+    -60.0,
+    0.0
+  ],
+  "up": [
+    0.0,
+    1.0,
+    0.0
+  ],
+  "rotationEuler": [
+    0.82434,
+    0.0,
+    3.141593
+  ],
+  "rotationEulerOrder": "XYZ",
+  "quaternion": [
+    0.0,
+    -0.400598,
+    -0.916254,
+    -0.0
+  ],
+  "lens_mm": 28.0,
+  "sensor_fit": "VERTICAL",
+  "sensor_height_mm": 24.0,
+  "fov_vertical_deg": 46.3972,
+  "fov_horizontal_deg": 74.6079,
+  "aspect": 1.777778,
+  "resolution": [
+    1280,
+    720
+  ],
+  "fps": 24,
+  "frames": 72
+}
