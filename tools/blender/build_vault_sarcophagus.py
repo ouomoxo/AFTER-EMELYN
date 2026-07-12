@@ -19,6 +19,7 @@ sys.path.insert(0, os.path.dirname(__file__))
 import bpy, bmesh  # type: ignore
 from mathutils import Vector, Matrix  # type: ignore
 import sovereign_bpy as S
+import sovereign_kit as K
 
 RENDER = "--render" in sys.argv
 OUT = os.path.join(os.path.dirname(__file__), "../../public/assets/models/vault_sarcophagus.glb")
@@ -341,6 +342,10 @@ for sx in (1, -1):
                      (cx, cy, POST_Z0 + BASE_H / 2), col)
         S.assign(base, m["titanium"]); S.bevel(base, 0.008, 4)
         S.apply_modifiers(base); frame_parts.append(base)
+        # machined mounting flange + bolt circle at the base (fastener density)
+        frame_parts += K.bolt_ring(f"Frame_BaseBolt{sx}{sy}",
+                                   (cx, cy, POST_Z0 + BASE_H + 0.005), (0, 0, 1),
+                                   0.10, 8, col, m, r=0.008, head_h=0.008)
         # Fluted shaft, smoothed with a subsurf for buttery machined metal, then
         # baked so the count survives the join intact (real, visible density).
         shaft = fluted_column("Frame_Column", COL_R, SHAFT_H, 22, 10, 12, 0.010,
@@ -352,6 +357,13 @@ for sx in (1, -1):
                     (cx, cy, SHAFT_Z0 + SHAFT_H + CAP_H / 2), col)
         S.assign(cap, m["titanium"]); S.bevel(cap, 0.008, 3)
         S.apply_modifiers(cap); frame_parts.append(cap)
+        # bolt circle seating the capital + a data connector on the outer face
+        frame_parts += K.bolt_ring(f"Frame_CapBolt{sx}{sy}",
+                                   (cx, cy, SHAFT_Z0 + SHAFT_H + CAP_H + 0.004), (0, 0, 1),
+                                   0.11, 8, col, m, r=0.008, head_h=0.008)
+        frame_parts += K.connector_port(f"Frame_CapC{sx}{sy}",
+                                        (cx + sx * 0.145, cy, SHAFT_Z0 + SHAFT_H + CAP_H / 2),
+                                        col, m, r=0.03, depth=0.02, axis=(sx, 0, 0), pins=7)
 RAIL_Z = SHAFT_Z0 + SHAFT_H + CAP_H
 # Architrave — a thin frame connecting the capitals.
 for sy in (1, -1):
