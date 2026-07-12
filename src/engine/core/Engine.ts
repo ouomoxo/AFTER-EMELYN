@@ -264,8 +264,6 @@ export class Engine {
       }
     }
     this.camera.update(dt, this.size.x / this.size.y);
-    // Drive the DOF focus plane to the subject the camera is framing.
-    if (this.post) this.post.focus = this.camera.focusDistance;
 
     setState({ progress: this.timeline.progress, shot: this.timeline.shot });
 

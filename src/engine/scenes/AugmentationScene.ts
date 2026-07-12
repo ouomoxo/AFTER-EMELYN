@@ -50,9 +50,10 @@ export class AugmentationScene extends Scene {
   async build(ctx: SceneContext): Promise<void> {
     this.three.fog = new THREE.FogExp2(0x05070a, 0.05);
     this.three.background = new THREE.Color(0x04050a);
-    // A brighter surgical key so the machined titanium + ceramic craft reads —
-    // the rebuilt hero has real joinery worth lighting, not a flat blockout.
-    coldRig(this.three, [0, 0.85, 0], 95);
+    // The HDRI now carries the fill + reflections, so the key can come DOWN —
+    // a lower key keeps the surgical-white ceramic off the clip point (blown
+    // highlights read as cheap) while the machined titanium still reads.
+    coldRig(this.three, [0, 0.85, 0], 62);
 
     // A cold operating-theatre floor reflection plane.
     const floor = new THREE.Mesh(

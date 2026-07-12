@@ -10,7 +10,6 @@ import * as THREE from 'three/webgpu';
 import {
   pass,
   bloom,
-  dof,
   uniform,
   uv,
   vec2,
@@ -31,11 +30,8 @@ export class Post {
   private uTime = uniform(0);
   private uFade = uniform(0);
   private uCorruption = uniform(0);
-  private uGrain = uniform(0.018);
-  private uFocus = uniform(6);      // focus distance (camera→subject), updated per frame
-  private uAperture = uniform(0.006); // a whisper: subject dead sharp, only deep bg falls off
-  private uMaxblur = uniform(0.4);
-  private uCA = uniform(0.0013);    // chromatic aberration at the frame edge
+  private uGrain = uniform(0.014);
+  private uCA = uniform(0.0011);    // chromatic aberration at the frame edge
   private bloomPass?: ReturnType<typeof bloom>;
   private bloomStrength = 0.5;
   private lens: boolean;            // DOF + CA on this tier?
@@ -76,18 +72,13 @@ export class Post {
       lensColor = vec4(r, g, b, 1.0) as unknown as typeof sceneColor;
     }
 
-    // --- Depth of field (bokeh): focus tracks the subject; everything else falls
-    // off. This is the single strongest "shot on a camera" cue. Tier A/B only. ---
-    let focused: typeof sceneColor = lensColor;
-    if (this.lens) {
-      const viewZ = scenePass.getViewZNode();
-      focused = dof(lensColor, viewZ, this.uFocus, this.uAperture, this.uMaxblur) as unknown as typeof sceneColor;
-    }
+    // NOTE: real-time DOF was removed — the 41-tap bokeh softened the whole
+    // frame (and streaked on reflective surfaces), which read as cheap. The
+    // image stays SHARP; crispness reads as higher quality than a blurred lens.
+    let col = lensColor.rgb;
 
-    let col = focused.rgb;
-
-    // --- Bloom: only genuine emissives (high threshold), on the focused image ---
-    this.bloomPass = bloom(focused, this.bloomStrength, 0.6, 0.92);
+    // --- Bloom: only genuine emissives (high threshold) ---
+    this.bloomPass = bloom(lensColor, this.bloomStrength, 0.6, 0.92);
     col = col.add(this.bloomPass.rgb);
 
     // --- Split-tone grade (linear, pre AgX output-transform): cool shadows,
@@ -131,10 +122,6 @@ export class Post {
   }
   set corruption(v: number) {
     this.uCorruption.value = v;
-  }
-  /** Focus distance (camera → subject), driven per frame by the Engine. */
-  set focus(d: number) {
-    this.uFocus.value = d;
   }
 
   resize(_w: number, _h: number) {
