@@ -369,3 +369,98 @@ def braided_strand(name, path_fn, col, mats, n_ply=3, ply_r=0.006, bundle_r=0.02
             S.bevel(fitting, 0.002, 1)
             parts.append(fitting)
     return parts
+
+
+# ----------------------------------------------------------------------------
+# High-density detail — dense fastener rings, cable bundles, heatsink stacks,
+# greeble plates. These are what push an asset from "clean CG" to "hard-surface
+# high-detail": many small, deliberate elements layered over the primary form.
+# ----------------------------------------------------------------------------
+def bolt_ring(name, center, axis, radius, count, col, mats, r=0.008, head_h=0.008,
+              kind="hex"):
+    """A ring of `count` small fasteners around `center`, on the plane ⟂ axis."""
+    center = Vector(center)
+    axis = Vector(axis).normalized()
+    u = perp(axis)
+    v = axis.cross(u).normalized()
+    out = []
+    for i in range(count):
+        a = (i / count) * math.tau
+        p = center + (u * math.cos(a) + v * math.sin(a)) * radius
+        if kind == "hex":
+            out += hex_bolt(f"{name}{i}", tuple(p), col, mats, r=r, head_h=head_h,
+                            washer=False, axis=tuple(axis))
+        else:
+            out += socket_cap(f"{name}{i}", tuple(p), col, mats, r=r, h=head_h, axis=tuple(axis))
+    return out
+
+
+def cable_bundle(name, path_fn, col, mats, count=12, r=0.004, spread=0.03,
+                 samples=40, mat=None, collars=0):
+    """A DENSE bundle of `count` thin cables following path_fn(t)->Vector, packed
+    in a rough disc of `spread`. Optionally `collars` clamp rings along the run."""
+    mat = mat or mats["rubber"]
+    parts = []
+    # deterministic packing: rings of cables in the cross-section disc
+    offs = []
+    ring_caps = [1, 6, 12, 18]
+    idx = 0
+    ri = 0
+    while idx < count:
+        cap = ring_caps[min(ri, len(ring_caps) - 1)]
+        rr = 0.0 if ri == 0 else spread * (ri / max(1, len(ring_caps) - 1))
+        for k in range(cap):
+            if idx >= count:
+                break
+            a = (k / cap) * math.tau
+            offs.append((rr, a))
+            idx += 1
+        ri += 1
+    for ci, (rr, a0) in enumerate(offs):
+        pts = []
+        for i in range(samples):
+            t = i / (samples - 1)
+            c = path_fn(t)
+            tan = (path_fn(min(1, t + 0.03)) - path_fn(max(0, t - 0.03)))
+            tan = tan.normalized() if tan.length > 1e-6 else Vector((0, 0, 1))
+            u = perp(tan)
+            w = tan.cross(u).normalized()
+            a = a0 + t * 1.5  # gentle twist so the bundle reads as woven
+            pts.append(c + (u * math.cos(a) + w * math.sin(a)) * rr)
+        cab = sweep_tube(f"{name}_c{ci}", pts, r, col, mat, segs=6)
+        if cab:
+            parts.append(cab)
+    for k in range(collars):
+        t = (k + 0.5) / collars
+        c = path_fn(t)
+        tan = (path_fn(min(1, t + 0.03)) - path_fn(max(0, t - 0.03))).normalized()
+        coll = S.tube(f"{name}_clamp{k}", spread + 0.012, spread + 0.004, 0.02, 20, tuple(c), col)
+        coll.rotation_euler = tan.to_track_quat("Z", "Y").to_euler()
+        S.assign(coll, mats["titanium"])
+        S.bevel(coll, 0.002, 1)
+        parts.append(coll)
+    return parts
+
+
+def fin_stack(name, center, u, v, n, w, finh, thick, stack_len, col, mat, taper=0.0):
+    """A heatsink: `n` thin fins stacked along `v` over `stack_len`, each `w` wide
+    along `u` and `finh` tall along the surface normal. `taper` shrinks the fin
+    height toward the ends of the stack."""
+    center = Vector(center)
+    u = Vector(u).normalized()
+    v = Vector(v).normalized()
+    nrm = u.cross(v).normalized()
+    out = []
+    for i in range(n):
+        f = (i / max(1, n - 1)) - 0.5
+        fy = f * stack_len
+        env = 1.0 - taper * abs(f) * 2.0
+        out.append(_plate(f"{name}{i}", center + v * fy, u, nrm, w, finh * env, thick, col, mat))
+    return out
+
+
+def greeble_plate(name, center, u, v, w, h, col, mat, recess=0.0):
+    """A small raised (or recessed) detail plate flush on a surface — the
+    secondary-detail layer that makes a panel read as engineered."""
+    n2 = Vector(u).normalized().cross(Vector(v).normalized()).normalized()
+    return _plate(name, Vector(center) + n2 * (0.004 - recess), u, v, w, h, 0.006, col, mat)

@@ -114,8 +114,8 @@ assets:
     materials: [M_Ceramic, M_CeramicMatte, M_Carbon, M_Titanium, M_TitaniumPolish, M_Graphite, M_GraphiteWorn, M_GraphiteLight, M_ObsidianMatte, M_Obsidian, M_SmokedGlass, M_ClearGlass, M_Brass, M_Data, M_DataSoft, M_DataCore]
     bundle: augment
     status: shipped
-    tri_actual: 81536          # well under the 180k budget
-    baked_variant: "public/assets/models/cybernetic_module_baked.glb (2048² AO, tier A/B)"
+    tri_actual: 162544         # high-density rebuild; under the 180k budget
+    baked_variant: "public/assets/models/cybernetic_module_baked.glb (1024² PBR normal+rough+AO, tier A/B)"
     notes: >
       HERO of the film — REBUILT 2026-07 from the art up (was a stacked-primitive
       blockout). One GLB, six named nodes the runtime explodes: Spinal_Interface

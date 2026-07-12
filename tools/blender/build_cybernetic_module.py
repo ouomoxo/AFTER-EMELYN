@@ -90,22 +90,34 @@ for i in range(NV):
     R = 0.055 * taper
 
     # --- centrum: a machined drum with a recessed circumferential groove ---
-    body = S.cyl(f"Vbody{i}", R, 0.058, 28, tuple(p), col)
+    body = S.cyl(f"Vbody{i}", R, 0.058, 48, tuple(p), col)
     body.rotation_euler = tan.to_track_quat("Z", "Y").to_euler()
     S.assign(body, m["titanium_polish"]); S.bevel(body, 0.004, 2)
     spine_parts.append(body)
-    groove = S.tube(f"Vgrv{i}", R * 0.98, R * 0.86, 0.014, 28, tuple(p), col)
+    groove = S.tube(f"Vgrv{i}", R * 0.98, R * 0.86, 0.014, 48, tuple(p), col)
     groove.rotation_euler = body.rotation_euler
     S.assign(groove, m["obsidian_matte"])
     spine_parts.append(groove)
+    # a bright bearing race seated in the groove (machined density)
+    bearing = S.tube(f"Vbr{i}", R * 0.90, R * 0.84, 0.020, 48, tuple(p), col)
+    bearing.rotation_euler = body.rotation_euler
+    S.assign(bearing, m["titanium"]); S.bevel(bearing, 0.0016, 1)
+    spine_parts.append(bearing)
 
-    # --- endplate facets: ceramic articulation pads above & below ---
+    # --- endplate facets: ceramic articulation pads above & below, each ringed
+    #     by a mounting flange + a bolt circle (mechanical density) ---
     for sz, tag in ((1, "sup"), (-1, "inf")):
         fp = p + tan * (sz * 0.032)
-        facet = S.cyl(f"Vfac{i}{tag}", R * 1.06, 0.010, 28, tuple(fp), col)
+        facet = S.cyl(f"Vfac{i}{tag}", R * 1.06, 0.010, 48, tuple(fp), col)
         facet.rotation_euler = body.rotation_euler
         S.assign(facet, m["ceramic"]); S.bevel(facet, 0.003, 1)
         spine_parts.append(facet)
+        flange = S.cyl(f"Vflg{i}{tag}", R * 1.16, 0.007, 48, tuple(fp + tan * (sz * 0.006)), col)
+        flange.rotation_euler = body.rotation_euler
+        S.assign(flange, m["graphite_light"]); S.bevel(flange, 0.0016, 1)
+        spine_parts.append(flange)
+        spine_parts += K.bolt_ring(f"Vfb{i}{tag}", tuple(fp + tan * (sz * 0.010)),
+                                   tuple(tan * sz), R * 1.10, 10, col, m, r=0.004, head_h=0.004)
 
     # --- pedicles + posterior arch enclosing the neural foramen ---
     arch_c = p + Vector((0, -R * 1.7, 0))
@@ -150,6 +162,23 @@ for i in range(NV):
     for s in (-1, 1):
         spine_parts += K.socket_cap(f"Vasc{i}_{s}", p + Vector((s * R * 0.5, R * 0.98, 0)),
                                     col, m, r=0.006, axis=(0, 1, 0))
+
+    # --- posterolateral servo housing: machined box + mini heatsink + micro-bolts
+    #     + a data connector. Alternating side; the biggest per-vertebra density. ---
+    ss = 1 if i % 2 == 0 else -1
+    sv = p + Vector((ss * R * 1.5, -R * 1.15, 0.028))
+    sbox = S.box(f"Vsv{i}", (0.052, 0.040, 0.030), tuple(sv), col)
+    S.assign(sbox, m["graphite"]); S.bevel(sbox, 0.003, 2)
+    spine_parts.append(sbox)
+    spine_parts += K.fin_stack(f"Vsvf{i}", sv + Vector((0, 0, 0.018)), X, Vector((0, 1, 0)),
+                               7, 0.046, 0.012, 0.0022, 0.032, col, m["graphite_worn"])
+    for bx in (-1, 1):
+        for by in (-1, 1):
+            spine_parts += K.hex_bolt(f"Vsvb{i}{bx}{by}",
+                                      tuple(sv + Vector((bx * 0.022, by * 0.017, 0.016))),
+                                      col, m, r=0.0032, head_h=0.0032, washer=False, axis=(0, 0, 1))
+    spine_parts += K.connector_port(f"Vsvc{i}", tuple(sv + Vector((0, -0.024, 0.0))),
+                                    col, m, r=0.013, depth=0.012, axis=(0, -1, 0), pins=5)
 
     # --- asymmetric medical hardware: sensor pod (odd) / connector stub (even) ---
     if i % 2 == 1:
@@ -246,19 +275,13 @@ for i in range(NV):
     S.assign(node, m["data"])
     neural_parts.append(node)
 
-# two heavier cyan bundles running the flanks with connector collars
+# DENSE cyan cable harnesses running each flank — a woven bundle of many thin
+# fibres with machined clamp collars, not a single fat filament.
 for s in (-1, 1):
-    pts = [spine_at(i / 30) + Vector((s * 0.05, -0.03, 0)) for i in range(31)]
-    bundle = K.sweep_tube(f"Nbun_{s}", pts, 0.009, col, m["data_soft"], segs=8)
-    if bundle:
-        neural_parts.append(bundle)
-    for k in range(6):
-        t = 0.08 + 0.84 * (k / 5)
-        cp = spine_at(t) + Vector((s * 0.05, -0.03, 0))
-        collar = S.tube(f"Ncol_{s}_{k}", 0.014, 0.010, 0.012, 14, tuple(cp), col)
-        collar.rotation_euler = tangent_at(t).to_track_quat("Z", "Y").to_euler()
-        S.assign(collar, m["titanium"])
-        neural_parts.append(collar)
+    def flank(tt, s=s):
+        return spine_at(tt * 0.9 + 0.05) + Vector((s * 0.055, -0.03, 0))
+    neural_parts += K.cable_bundle(f"Nbun{s}", flank, col, m, count=13, r=0.0032,
+                                   spread=0.016, samples=34, mat=m["data_soft"], collars=6)
 
 neural_conductor = S.join_all(neural_parts, "Neural_Conductor")
 S.shade_smooth(neural_conductor)
@@ -343,17 +366,21 @@ def shell_panel(name, sign, z_lo, z_hi, mat):
     S.assign(obj, mat); S.bevel(obj, 0.004, 2); S.shade_smooth(obj)
     return obj
 
-def shell_bolts(prefix, sign, t, mats):
-    """Countersunk fasteners along a panel's two vertical seam edges."""
+def shell_bolts(prefix, sign, zl, zh, mats, n=6):
+    """A full ROW of countersunk fasteners down each of a panel's two vertical
+    seam edges — dense, engineered joinery rather than a token pair."""
     out = []
     span = math.radians(140)
     base_ang = (math.pi / 2) if sign > 0 else (-math.pi / 2)
-    cp = spine_at(t)
     for edge in (-1, 1):
-        a = base_ang + edge * span / 2 * 0.92
-        pos = (cp.x + math.cos(a) * 0.203, cp.y + math.sin(a) * 0.203, cp.z)
-        n = (math.cos(a), math.sin(a), 0)
-        out += K.hex_bolt(f"{prefix}_{edge}", pos, col, mats, r=0.006, axis=n, washer=False)
+        a = base_ang + edge * span / 2 * 0.93
+        nrm = (math.cos(a), math.sin(a), 0)
+        for j in range(n):
+            t = zl + (zh - zl) * (j + 0.5) / n
+            cp = spine_at(t)
+            pos = (cp.x + math.cos(a) * 0.203, cp.y + math.sin(a) * 0.203, cp.z)
+            out += K.hex_bolt(f"{prefix}_{edge}_{j}", pos, col, mats, r=0.005,
+                              head_h=0.005, axis=nrm, washer=False)
     return out
 
 def shell_on_surface_axes(sign, t):
@@ -373,7 +400,7 @@ zbands = [(0.06, 0.36), (0.37, 0.66), (0.67, 0.95)]
 mat_variants = [m["ceramic"], m["ceramic_matte"], m["ceramic"]]
 for pi, (zl, zh) in enumerate(zbands):
     shellL_parts.append(shell_panel(f"ShL_p{pi}", +1, zl, zh, mat_variants[pi]))
-    shellL_parts += shell_bolts(f"ShLb{pi}", +1, (zl + zh) / 2, m)
+    shellL_parts += shell_bolts(f"ShLb{pi}", +1, zl, zh, m)
 cV, uV, vV, nV = shell_on_surface_axes(+1, 0.5)
 shellL_parts += K.vent_louvers("ShL_vent", cV, uV, vV, 0.10, 0.14, col, m, slats=6, tilt=0.5)
 shell_L = S.join_all(shellL_parts, "Dermal_Shell_L")
@@ -383,7 +410,7 @@ S.weighted_normal(shell_L)
 shellR_parts = []
 for pi, (zl, zh) in enumerate(zbands):
     shellR_parts.append(shell_panel(f"ShR_p{pi}", -1, zl, zh, mat_variants[(pi + 1) % 3]))
-    shellR_parts += shell_bolts(f"ShRb{pi}", -1, (zl + zh) / 2, m)
+    shellR_parts += shell_bolts(f"ShRb{pi}", -1, zl, zh, m)
 cH, uH, vH, nH = shell_on_surface_axes(-1, 0.5)
 hatch = K._plate("ShR_hatch", cH + nH * 0.002, uH, vH, 0.11, 0.15, 0.012, col, m["graphite_light"])
 shellR_parts.append(hatch)
@@ -414,13 +441,24 @@ mem_parts.append(house)
 backplate = S.box("Mem_Back", (0.19, 0.02, 0.14), tuple(house_c + Vector((0, 0.085, 0))), col)
 S.assign(backplate, m["graphite"]); S.bevel(backplate, 0.003, 1)
 mem_parts.append(backplate)
-# finned heatsink (real fins, bevelled tips)
-for fi in range(14):
-    fx = -0.085 + fi * (0.17 / 13)
-    fin = S.box(f"Mem_fin{fi}", (0.006, 0.05, 0.13),
-                tuple(house_c + Vector((fx, 0.11, 0))), col)
-    S.assign(fin, m["graphite_worn"]); S.bevel(fin, 0.0016, 1)
-    mem_parts.append(fin)
+# dense finned heatsink (28 fins) on the +Y crown, split into two combs
+mem_parts += K.fin_stack("Mem_finA", house_c + Vector((0, 0.115, 0)), Vector((0, 0, 1)),
+                         X, 28, 0.13, 0.05, 0.0022, 0.185, col, m["graphite_worn"], taper=0.15)
+# a machined comb base + tie-bars over the fins
+combbase = S.box("Mem_combbase", (0.185, 0.014, 0.14), tuple(house_c + Vector((0, 0.088, 0))), col)
+S.assign(combbase, m["graphite"]); S.bevel(combbase, 0.003, 1)
+mem_parts.append(combbase)
+for tb in (-1, 1):
+    bar = S.box(f"Mem_tie{tb}", (0.185, 0.008, 0.010), tuple(house_c + Vector((0, 0.16, tb * 0.055))), col)
+    S.assign(bar, m["titanium"]); S.bevel(bar, 0.002, 1)
+    mem_parts.append(bar)
+# heat-pipe loops emerging from the sink
+for hp in (-1, 1):
+    pts = [house_c + Vector((hp * 0.06, 0.088, 0.05)), house_c + Vector((hp * 0.09, 0.15, 0.03)),
+           house_c + Vector((hp * 0.07, 0.17, -0.02)), house_c + Vector((hp * 0.03, 0.15, -0.05))]
+    pipe = K.sweep_tube(f"Mem_hp{hp}", pts, 0.006, col, m["titanium_polish"], segs=10)
+    if pipe:
+        mem_parts.append(pipe)
 # A live emissive DISPLAY behind a machined bezel and a thin clear cover. (Deep
 # smoked-glass-over-a-core went dead in AgX — an emissive screen reads in every
 # renderer, and clear cover glass never filters the glow.)
